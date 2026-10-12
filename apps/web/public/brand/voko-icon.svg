@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Voko Icon">
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="#1E40AF" />
+  <path d="M18 19L32 47L46 19H38.5L32 34L25.5 19H18Z" fill="#FFFFFF" />
+  <circle cx="32" cy="19" r="4.5" fill="#38BDF8" />
+</svg>

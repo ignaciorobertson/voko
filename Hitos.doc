@@ -1,0 +1,118 @@
+# VOKO — Registro y Seguimiento de Hitos del Proyecto
+
+Este documento registra el estado de avance, validaciones técnicas y cumplimiento de los criterios de aceptación acordados en el plan maestro (`docs/architecture/milestones_plan.md`).
+
+---
+
+## 📌 Hito 7: Área del Cliente y Administración del Negocio
+**Estado:** ✅ **Completado y Verificado** (Aprobado)
+
+### Criterios de Aceptación Obligatorios:
+1. **Portal del cliente con mis turnos, historial y reprogramación:**
+   - Implementado en backend con `CustomerPortalController` y `CustomerPortalService`.
+   - Endpoints: `GET /portal/me`, `PATCH /portal/me`, `GET /portal/appointments?filter=upcoming|past`, `POST /portal/appointments/:id/cancel`, `POST /portal/appointments/:id/reschedule`.
+   - Validación estricta de políticas de anticipación y cancelación (`cancellationDeadlineMinutes`).
+   - Reprogramación atómica con bloqueo pesimista contra sobre-reservas (anti-race conditions).
+   - Implementado en frontend con `CustomerPortalPage.tsx` en `/portal` y `/mi-cuenta`.
+
+2. **Panel de administración con vista de agenda diaria y semanal:**
+   - Implementado en `AdminDashboardPage.tsx` y componente `AgendaTab.tsx`.
+   - Vistas conmutables Diaria y Semanal con navegación de fechas y slots horarios interactivos.
+   - Acceso rápido a bloqueo de horarios no disponibles (`QuickBlockModal.tsx`).
+
+3. **Filtros por sucursal, servicio y profesional:**
+   - Soporte en API mediante query params (`branchId`, `serviceId`, `resourceId`, `status`, `startDate`, `endDate`).
+   - Controles de selección y filtrado reactivo en tiempo real en la UI de la agenda.
+
+4. **Registro manual de turnos y gestión de estados de atención:**
+   - Modal operativo `ManualAppointmentModal.tsx` para turnos espontáneos (walk-in) y reservas telefónicas.
+   - Endpoint backend `POST /businesses/:businessId/appointments/manual` y `PATCH /businesses/:businessId/appointments/:id/status`.
+   - Transiciones completas de estados de atención: `CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `NO_SHOW`, `CANCELLED_BY_BUSINESS` con trazabilidad inmutable en `AppointmentEventEntity`.
+
+5. **Reportes calculados sobre datos reales:**
+   - Módulo `reports` (`ReportsController` y `ReportsService`) en `GET /businesses/:businessId/reports/summary` y `GET /businesses/:businessId/reports/audit`.
+   - Cálculo dinámico de facturación realizada (suma de `snapshotPrice` de citas completadas), tasa de asistencia efectiva (asistidos vs inasistencias), ranking de servicios más demandados y rendimiento por recurso.
+   - Renderizado visual en frontend con `ReportsTab.tsx` y `AuditTab.tsx`.
+
+### Cobertura de Pruebas:
+- Suite específica: `src/modules/customers/hito7-operational.spec.ts` (11 pruebas unitarias e integración pasando).
+
+---
+
+## 📌 Hito 8: Panel Superadmin y Operación Global
+**Estado:** ✅ **Completado y Verificado** (Aprobado)
+
+### Criterios de Aceptación Obligatorios:
+1. **Listado de todos los negocios y métricas agregadas:**
+   - Implementado en `SuperadminService.listBusinesses()` y `GET /superadmin/businesses`.
+   - Retorna métricas enriquecidas por negocio: sucursales, servicios, recursos, miembros de equipo y total de turnos procesados.
+   - Búsqueda por término (nombre, slug, industria, email) y filtrado por estado (`ACTIVE`, `SUSPENDED`, `PENDING_REVIEW`).
+   - Interfaz en frontend en `SuperadminDashboardPage.tsx` (Pestaña "Red de Negocios").
+
+2. **Alta de negocios e invitación de administradores:**
+   - Creación express de negocios con aprovisionamiento del propietario inicial (`POST /superadmin/businesses`).
+   - Asignación de administradores/propietarios a negocios existentes (`POST /superadmin/businesses/:id/admins`).
+   - Modal interactivo con validación de slug único, datos del negocio y credenciales iniciales en `SuperadminDashboardPage.tsx`.
+
+3. **Suspensión y reactivación sin pérdida de información:**
+   - Endpoint `PATCH /superadmin/businesses/:id/status`.
+   - Preservación íntegra y garantizada del 100% de los datos relacionales (sucursales, servicios, miembros, turnos e historial permanecen intactos).
+   - Bloqueo preventivo de reservas públicas en negocios suspendidos (responden 404/NotFound protegiendo a los clientes finales).
+   - Reactivación instantánea restaurando la disponibilidad al estado operativo activo.
+   - Modal de confirmación en UI con captura obligatoria de justificación/motivo de auditoría.
+
+4. **Registro de auditoría global:**
+   - Tabla `audit_logs` con `AuditLogEntity` consultable vía `GET /superadmin/audit`.
+   - Trazabilidad de operaciones críticas: `BUSINESS_CREATED_BY_SUPERADMIN`, `BUSINESS_SUSPENDED`, `BUSINESS_ACTIVATED`, `SUPERADMIN_ROLE_TOGGLED`, `ADMIN_ASSIGNED_BY_SUPERADMIN`.
+   - Inspección detallada con actor responsable, entidad afectada, timestamp y payload `diffData`.
+   - Visualizador de logs en tiempo real en la pestaña "Pista de Auditoría".
+
+5. **Acceso estrictamente restringido al rol superadmin:**
+   - Guardia `SuperadminGuard` en NestJS que exige `user.isSuperadmin === true`. Rechaza con `403 Forbidden` a cualquier usuario común o administrador de negocio.
+   - Protección contra auto-revocación del único Superadministrador del sistema.
+   - Directorio de usuarios de la plataforma con capacidad de conceder y revocar privilegios de Superadmin.
+   - Bloqueo visual en frontend si el usuario actual no tiene rol de Superadmin, con mecanismo de autenticación rápida para entornos de prueba.
+
+### Cobertura de Pruebas:
+- Suite específica: `src/modules/superadmin/superadmin-security.spec.ts` (12 pruebas automáticas de seguridad e integración pasando al 100%).
+
+---
+
+## 📌 Hito 9: Notificaciones, Correos y Automatizaciones
+**Estado:** ✅ **Completado y Verificado**
+
+### Criterios de Aceptación Obligatorios:
+1. **Servicio de email desacoplado mediante Outbox transaccional:**
+   - Patrón Transactional Outbox implementado mediante la entidad `NotificationEntity` en base de datos.
+   - Al crear, reprogramar o cancelar turnos en `AppointmentsService`, el evento se inserta en la misma transacción de PostgreSQL (`manager.save(NotificationEntity)`).
+   - El endpoint HTTP responde inmediatamente al cliente (`201 Created` / `200 OK`) con cero dependencia o latencia de servicios externos de red.
+   - Si el proveedor de correo falla temporalmente, la reserva se preserva íntegra y no sufre rollback.
+   - Despachador asíncrono `OutboxProcessorService` que procesa la cola de notificaciones pendientes de manera idempotente.
+
+2. **Plantillas de confirmación, cancelación, reprogramación y recordatorios:**
+   - Servicio de renderizado responsivo `TemplatesService` con versión HTML visualmente cuidada y versión de texto plano (fallback accesible y anti-spam):
+     - `APPOINTMENT_CONFIRMED`: Detalle de servicio, fecha/hora, profesional, sucursal, dirección y precio.
+     - `APPOINTMENT_CANCELLED`: Motivo de cancelación, aviso al cliente y opción de reagendar.
+     - `APPOINTMENT_RESCHEDULED`: Comparativa entre horario anterior y nuevo horario asignado.
+     - `APPOINTMENT_REMINDER`: Recordatorio de turno 24 horas antes con advertencia de puntualidad y ubicación.
+   - Modal interactivo de previsualización en el panel web para administradores (`NotificationsTab.tsx`).
+
+3. **Reintentos automáticos sin duplicación de mensajes (Backoff Exponencial e Idempotencia):**
+   - Transición de estados: `PENDING` ➔ `SENT` (éxito) o `PENDING` ➔ `RETRYING` ➔ `FAILED` (tras alcanzar el límite máximo de reintentos, por defecto 3).
+   - Cálculo de backoff exponencial: `scheduledAt = NOW() + (2 ^ retryCount * baseDelaySeconds)` para no saturar al receptor ni al servidor.
+   - Idempotencia estricta: las notificaciones marcadas como `SENT` son ignoradas por ejecuciones posteriores del worker, eliminando duplicados.
+   - Soporte para reintento manual inmediato desde la interfaz y API (`POST /businesses/:id/notifications/:notifId/retry`).
+
+4. **Contrato de webhooks para n8n documentado:**
+   - Documento técnico formal creado en `docs/architecture/n8n_webhooks_contract.md`.
+   - Especificación completa de encabezados HTTP: `Content-Type`, `X-Voko-Event`, `X-Voko-Signature` (HMAC SHA-256), `X-Voko-Timestamp`, `X-Voko-Delivery-Id` (UUID de idempotencia).
+   - Ejemplos de payloads JSON para cada uno de los 4 eventos clave y snippet JavaScript para validación en el nodo Code de n8n.
+   - Servicio `N8nSenderService` con generación automática de firma HMAC y manejo seguro de timeouts.
+
+5. **El sistema opera normalmente sin n8n:**
+   - Desacoplamiento total verificado: si n8n no está configurado, está apagado o responde con error, el canal de correo electrónico y el flujo central de reservas siguen operando al 100% sin interrupciones.
+
+### Cobertura de Pruebas:
+- Suite específica: `src/modules/notifications/hito9-notifications.spec.ts` (15 pruebas de integración y resiliencia pasando al 100%).
+- Suite global del proyecto: **107/107 pruebas pasando (9 suites exitosas)**.
+- Compilación y build: TypeScript, NestJS y Vite empaquetan en producción con código de salida **0**.

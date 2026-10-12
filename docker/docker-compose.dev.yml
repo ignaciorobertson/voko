@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voko_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voko_user
+      POSTGRES_PASSWORD: voko_secure_password
+      POSTGRES_DB: voko_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - voko_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voko_user -d voko_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  voko_postgres_data:
+    name: voko_postgres_data

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" fill="none" role="img" aria-label="Voko Logo">
+  <!-- Isotipo: V geométrica combinada con indicador de turno y precisión temporal -->
+  <g transform="translate(10, 10)">
+    <!-- Círculo exterior sutil de agenda -->
+    <rect x="0" y="0" width="60" height="60" rx="16" fill="#1E40AF" />
+    <!-- V estilizada geométrica en gradiente elegante y nítido -->
+    <path d="M16 18L30 46L44 18H36.5L30 33L23.5 18H16Z" fill="#FFFFFF" />
+    <!-- Punto de acento / slot confirmado en color celeste vibrante -->
+    <circle cx="30" cy="18" r="4" fill="#38BDF8" />
+  </g>
+  <!-- Tipografía de Marca "VOKO" -->
+  <text x="86" y="52" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="38" font-weight="800" fill="#0F172A" letter-spacing="3">
+    VOKO
+  </text>
+  <!-- Subtítulo de posicionamiento del producto -->
+  <text x="88" y="66" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600" fill="#64748B" letter-spacing="1.5">
+    GESTIÓN INTELIGENTE DE TURNOS
+  </text>
+</svg>

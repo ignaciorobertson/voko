@@ -1,0 +1,28 @@
+{
+  "name": "proyecto-voko-turnos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Voko — Plataforma SaaS Multiempresa de Gestión de Turnos",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "docker:up": "docker compose -f docker/docker-compose.dev.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.dev.yml down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3"
+  }
+}
