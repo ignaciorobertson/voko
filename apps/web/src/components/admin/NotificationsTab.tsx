@@ -7,7 +7,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Webhook,
+  Bell,
   Eye,
   RotateCcw,
   Sparkles,
@@ -44,8 +44,8 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
   >('APPOINTMENT_CONFIRMED');
   const [previewResult, setPreviewResult] = useState<TemplatePreviewResponse | null>(null);
 
-  // Modal de n8n info
-  const [isN8nInfoOpen, setIsN8nInfoOpen] = useState(false);
+  // Modal de Arquitectura info
+  const [isArchInfoOpen, setIsArchInfoOpen] = useState(false);
 
   // Notificación flotante
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -163,12 +163,12 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
             <h2 className="text-lg font-black text-slate-900 tracking-tight">
               Transactional Outbox & Notificaciones
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
               Hito 9 Activo
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Comunicaciones desacopladas, reintentos con backoff exponencial y automatización n8n
+            Notificaciones internas, Transactional Outbox y automatizaciones nativas en NestJS + PostgreSQL
           </p>
         </div>
 
@@ -178,14 +178,14 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
             className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
           >
             <Eye className="w-3.5 h-3.5" />
-            Vista Previa Emails
+            Plantillas Email
           </button>
           <button
-            onClick={() => setIsN8nInfoOpen(true)}
-            className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+            onClick={() => setIsArchInfoOpen(true)}
+            className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
           >
-            <Webhook className="w-3.5 h-3.5" />
-            Contrato n8n
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Arquitectura Lean
           </button>
           <button
             disabled={remindersMutation.isPending}
@@ -239,9 +239,9 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-purple-600 text-2xs font-bold uppercase tracking-wider block mb-1">Canal n8n / Webhook</span>
-          <p className="text-2xl font-black text-purple-600">{stats?.byChannel?.webhook || 0}</p>
-          <span className="text-2xs text-slate-400 mt-1 block">Emails: {stats?.byChannel?.email || 0}</span>
+          <span className="text-emerald-600 text-2xs font-bold uppercase tracking-wider block mb-1">Notificaciones Internas</span>
+          <p className="text-2xl font-black text-emerald-600">{stats?.byChannel?.inApp || 0}</p>
+          <span className="text-2xs text-slate-400 mt-1 block">In-App activas</span>
         </div>
       </div>
 
@@ -267,8 +267,8 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-indigo-500"
           >
             <option value="ALL">Todos los Canales</option>
+            <option value={NotificationChannel.IN_APP}>Notificaciones Internas (IN_APP)</option>
             <option value={NotificationChannel.EMAIL}>Correo Electrónico (EMAIL)</option>
-            <option value={NotificationChannel.N8N_WEBHOOK}>Webhook de n8n</option>
           </select>
         </div>
 
@@ -336,8 +336,8 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
                             </>
                           ) : (
                             <>
-                              <Webhook className="w-3.5 h-3.5 text-purple-600" />
-                              n8n
+                              <Bell className="w-3.5 h-3.5 text-emerald-600" />
+                              Interna
                             </>
                           )}
                         </span>
@@ -533,17 +533,17 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
         </div>
       )}
 
-      {/* MODAL: CONTRATO DE INTEGRACIÓN n8n */}
-      {isN8nInfoOpen && (
+      {/* MODAL: INFORMACIÓN DE ARQUITECTURA LEAN */}
+      {isArchInfoOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-xs">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Webhook className="w-5 h-5 text-purple-600" />
-                <h3 className="text-sm font-bold text-slate-900">Integración con n8n y Webhooks Salientes</h3>
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">Arquitectura Lean y Notificaciones Internas</h3>
               </div>
               <button
-                onClick={() => setIsN8nInfoOpen(false)}
+                onClick={() => setIsArchInfoOpen(false)}
                 className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
@@ -551,44 +551,37 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
             </div>
 
             <div className="space-y-3 text-slate-600 leading-relaxed">
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-purple-600 shrink-0" />
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div>
-                  <p className="font-bold">Principio de Autonomía de Voko (Criterio 5)</p>
-                  <p className="text-2xs text-purple-700">
-                    Voko no requiere n8n para operar. El sistema maneja de forma autónoma el envío de emails y el almacenamiento transaccional de reservas. Si n8n está inactivo, el negocio continúa operando con normalidad.
+                  <p className="font-bold">Plataforma SaaS Autónoma (Costo Cero en Servicios Obligatorios)</p>
+                  <p className="text-2xs text-emerald-700">
+                    Voko opera sin servidores externos de automatización ni dependencias de pago. Las notificaciones de reservas, cancelaciones y reprogramaciones se gestionan de forma nativa e interna.
                   </p>
                 </div>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-1">1. Encabezados de Seguridad (Firma HMAC SHA-256)</h4>
+                <h4 className="font-bold text-slate-900 mb-1">1. Notificaciones Internas (In-App)</h4>
                 <p className="text-2xs text-slate-500 mb-2">
-                  Cada llamada POST saliente hacia tu Webhook Node en n8n incluye los siguientes encabezados:
+                  Cada cambio de estado en un turno genera alertas para clientes y profesionales directamente en la interfaz (campana con badge y lista de no leídas), persistidas en PostgreSQL.
                 </p>
-                <ul className="list-disc list-inside space-y-1 font-mono text-2xs bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-700">
-                  <li><code className="text-purple-600 font-bold">X-Voko-Event</code>: Nombre del evento (ej: APPOINTMENT_CONFIRMED)</li>
-                  <li><code className="text-purple-600 font-bold">X-Voko-Signature</code>: sha256=&lt;firma_criptográfica&gt;</li>
-                  <li><code className="text-purple-600 font-bold">X-Voko-Timestamp</code>: Marca de tiempo ISO-8601</li>
-                  <li><code className="text-purple-600 font-bold">X-Voko-Delivery-Id</code>: Clave única de idempotencia (UUID)</li>
-                </ul>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-1">2. Documentación Técnica del Contrato</h4>
+                <h4 className="font-bold text-slate-900 mb-1">2. Automatizaciones Nativas (NestJS + PostgreSQL)</h4>
                 <p className="text-2xs text-slate-500">
-                  El contrato formal se encuentra versionado y disponible en el repositorio en:{' '}
-                  <code className="text-indigo-600 font-mono">docs/architecture/n8n_webhooks_contract.md</code>.
+                  Los procesos programados (como el escaneo de turnos de las próximas 24 horas para recordatorios) se ejecutan con NestJS Scheduler y control de concurrencia e idempotencia en PostgreSQL, garantizando supervivencia ante reinicios del backend sin requerir Redis ni BullMQ.
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
-                onClick={() => setIsN8nInfoOpen(false)}
+                onClick={() => setIsArchInfoOpen(false)}
                 className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
               >
-                Entendido
+                Cerrar
               </button>
             </div>
           </div>

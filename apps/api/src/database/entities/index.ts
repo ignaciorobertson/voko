@@ -16,6 +16,7 @@ import { AuthSessionEntity } from './auth-session.entity';
 import { PasswordResetEntity } from './password-reset.entity';
 import { BusinessSettingsEntity } from './business-settings.entity';
 import { AuditLogEntity } from './audit-log.entity';
+import { InAppNotificationEntity } from './in-app-notification.entity';
 
 export * from './user.entity';
 export * from './business.entity';
@@ -35,6 +36,7 @@ export * from './auth-session.entity';
 export * from './password-reset.entity';
 export * from './business-settings.entity';
 export * from './audit-log.entity';
+export * from './in-app-notification.entity';
 
 export const ALL_ENTITIES = [
   UserEntity,
@@ -55,4 +57,5 @@ export const ALL_ENTITIES = [
   PasswordResetEntity,
   BusinessSettingsEntity,
   AuditLogEntity,
+  InAppNotificationEntity,
 ];

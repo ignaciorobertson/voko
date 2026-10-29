@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Layers, LayoutDashboard, Shield } from 'lucide-react';
+import { NotificationCenter } from './notifications/NotificationCenter.js';
 
 export const Navbar: React.FC = () => {
   return (
@@ -55,8 +56,9 @@ export const Navbar: React.FC = () => {
         </nav>
 
         <div className="flex items-center space-x-3">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">
-            Hito 9 — Notificaciones & Outbox
+          <NotificationCenter />
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            Hito 9 — Notificaciones & Automatizaciones
           </span>
         </div>
       </div>

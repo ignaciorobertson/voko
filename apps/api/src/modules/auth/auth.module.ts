@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { TokenService } from './token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TestTenantController } from './test-tenant.controller';
+import { DecoupledEmailService } from './email/password-reset-email.provider';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { TestTenantController } from './test-tenant.controller';
     ConfigModule,
   ],
   controllers: [AuthController, TestTenantController],
-  providers: [AuthService, TokenService, JwtStrategy],
-  exports: [AuthService, TokenService, PassportModule],
+  providers: [AuthService, TokenService, JwtStrategy, DecoupledEmailService],
+  exports: [AuthService, TokenService, PassportModule, DecoupledEmailService],
 })
 export class AuthModule {}

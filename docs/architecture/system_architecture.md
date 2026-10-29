@@ -13,7 +13,7 @@ El sistema opera bajo los principios de:
 1. **Aislamiento Multi-tenant Estricto:** Separación lógica blindada en base de datos y autorización a nivel de servidor.
 2. **Genérico por Configuración:** Adaptable a barberías, consultorios, gimnasios, centros deportivos, talleres y consultorías sin código espagueti ni excepciones por rubro.
 3. **Consistencia Transaccional y Anti-Overbooking:** Cero dobles reservas y control estricto de cupos bajo concurrencia real en PostgreSQL.
-4. **Desacoplamiento Operativo:** El núcleo de reservas opera de manera independiente a servicios de notificación externos (email, n8n, WhatsApp).
+4. **Autonomía Operativa y Costo Cero:** El núcleo de reservas opera de manera independiente a servicios de automatización externos (sin n8n ni Redis); notificaciones internas en tiempo real y scheduler nativo en PostgreSQL.
 
 ---
 
@@ -112,10 +112,10 @@ Se adopta una arquitectura de **Monolito Modular** organizada por dominios de ne
     - Generación de invitaciones seguras con token hasheado (SHA-256), expiración configurable y consumo único.
     - Soporte para invitar administradores, profesionales o clientes.
 
-11. **Notifications & Outbox (`notifications`)**:
-    - Patrón Transactional Outbox: cuando ocurre un evento (e.g. turno confirmado), el evento se inserta en la misma transacción de base de datos.
-    - Worker asíncrono despacha el correo mediante un servicio intercambiable.
-    - Si falla el proveedor externo, la reserva no se revierte; el evento se reintenta con backoff exponencial.
+11. **Notifications, In-App & Schedulers (`notifications`)**:
+    - Sistema propio de notificaciones internas (`in_app_notifications`) en PostgreSQL con centro de avisos en frontend para clientes, profesionales y administradores (leídas/no leídas).
+    - Despacho de email externo desacoplado exclusivamente para recuperación de contraseñas (Resend / Brevo / Local) sin agotar cuotas en operaciones cotidianas.
+    - Automatizaciones y tareas programadas nativas con `@nestjs/schedule` y persistencia relacional con control de concurrencia e idempotencia (recordatorios de turnos de 24h y purga de sesiones/tokens expirados) sin requerir Redis ni BullMQ.
 
 12. **Superadmin Global (`superadmin`)**:
     - Vista general de todos los tenants de la plataforma.

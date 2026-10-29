@@ -17,6 +17,7 @@ import { UserEntity } from '../../database/entities/user.entity';
 import { BusinessEntity } from '../../database/entities/business.entity';
 import { BranchEntity } from '../../database/entities/branch.entity';
 import { NotificationEntity } from '../../database/entities/notification.entity';
+import { InAppNotificationEntity } from '../../database/entities/in-app-notification.entity';
 import { BusinessMembershipEntity } from '../../database/entities/business-membership.entity';
 import {
   CreateAppointmentDto,
@@ -195,20 +196,82 @@ export class AppointmentsService {
       });
       await manager.save(AppointmentEventEntity, event);
 
-      // 8. Transactional Outbox (Hito 9): Registrar notificación desacoplada
+      // 8. Notificaciones Internas In-App (Transaccionales en PostgreSQL)
       try {
         const customer = await manager.findOne(UserEntity, { where: { id: customerId } });
         const business = await manager.findOne(BusinessEntity, { where: { id: businessId } });
         const branch = await manager.findOne(BranchEntity, { where: { id: branchId } });
 
+        // 8a. Notificación in-app para el cliente
+        if (customer) {
+          const customerNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: customer.id,
+            targetRole: 'CUSTOMER',
+            eventType: 'APPOINTMENT_CONFIRMED',
+            title: 'Turno Confirmado',
+            message: `Tu turno para ${service.name} en ${business?.name || 'Voko'} está confirmado.`,
+            data: {
+              appointmentId: savedAppointment.id,
+              serviceName: service.name,
+              startTime: savedAppointment.startTime.toISOString(),
+              endTime: savedAppointment.endTime.toISOString(),
+              branchName: branch?.name || 'Sede Principal',
+              resourceName: resource?.name || 'Profesional Asignado',
+              price: savedAppointment.snapshotPrice,
+            },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, customerNotif);
+        }
+
+        // 8b. Notificación in-app para el profesional/administrador
+        const staffMemberships = await manager.find(BusinessMembershipEntity, {
+          where: {
+            businessId,
+            status: MembershipStatus.ACTIVE,
+          },
+        });
+
+        const staffToNotify = new Set<string>();
+        for (const m of staffMemberships) {
+          if (m.role === UserRole.OWNER || m.role === UserRole.ADMIN) {
+            staffToNotify.add(m.userId);
+          }
+        }
+        if (resource?.userId) {
+          staffToNotify.add(resource.userId);
+        }
+
+        for (const staffUserId of staffToNotify) {
+          const staffNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: staffUserId,
+            targetRole: 'STAFF',
+            eventType: 'APPOINTMENT_CONFIRMED',
+            title: 'Nueva Reserva Recibida',
+            message: `Nueva cita de ${customer?.firstName || 'Cliente'} para ${service.name} el ${savedAppointment.startTime.toISOString().substring(0, 10)}.`,
+            data: {
+              appointmentId: savedAppointment.id,
+              customerId: customer?.id,
+              customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Cliente',
+              serviceName: service.name,
+              startTime: savedAppointment.startTime.toISOString(),
+            },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, staffNotif);
+        }
+
+        // 8c. Registro histórico en Outbox
         if (customer?.email) {
           const outboxNotif = manager.create(NotificationEntity, {
             businessId,
             recipientUserId: customer.id,
             recipientEmail: customer.email,
             eventType: 'APPOINTMENT_CONFIRMED',
-            channel: NotificationChannel.EMAIL,
-            status: NotificationStatus.PENDING,
+            channel: NotificationChannel.IN_APP,
+            status: NotificationStatus.SENT,
             retryCount: 0,
             payload: {
               appointmentId: savedAppointment.id,
@@ -224,11 +287,12 @@ export class AppointmentsService {
               currency: savedAppointment.snapshotCurrency,
             },
             scheduledAt: new Date(),
+            processedAt: new Date(),
           });
           await manager.save(NotificationEntity, outboxNotif);
         }
-      } catch (outboxErr: any) {
-        this.logger.warn(`Error al insertar notificación en outbox: ${outboxErr.message}`);
+      } catch (notifErr: any) {
+        this.logger.warn(`Error al insertar notificación interna: ${notifErr.message}`);
       }
 
       this.logger.log(
@@ -338,12 +402,44 @@ export class AppointmentsService {
       });
       await manager.save(AppointmentEventEntity, event);
 
-      // Transactional Outbox: Notificación de reprogramación
+      // Notificaciones Internas: Reprogramación
       try {
         const customer = await manager.findOne(UserEntity, { where: { id: appointment.customerId } });
         const business = await manager.findOne(BusinessEntity, { where: { id: businessId } });
         const branch = await manager.findOne(BranchEntity, { where: { id: appointment.branchId } });
         const resource = await manager.findOne(ResourceEntity, { where: { id: appointment.resourceId } });
+
+        if (customer) {
+          const customerNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: customer.id,
+            targetRole: 'CUSTOMER',
+            eventType: 'APPOINTMENT_RESCHEDULED',
+            title: 'Turno Reprogramado',
+            message: `Tu turno para ${appointment.service?.name || 'Servicio'} fue reprogramado para el ${newStartTime.toISOString()}.`,
+            data: {
+              appointmentId: updated.id,
+              previousStartTime: previousStartTime.toISOString(),
+              newStartTime: newStartTime.toISOString(),
+            },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, customerNotif);
+        }
+
+        if (resource?.userId) {
+          const staffNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: resource.userId,
+            targetRole: 'STAFF',
+            eventType: 'APPOINTMENT_RESCHEDULED',
+            title: 'Cita Reprogramada',
+            message: `El turno con ${customer?.firstName || 'Cliente'} fue reprogramado para el ${newStartTime.toISOString()}.`,
+            data: { appointmentId: updated.id, newStartTime: newStartTime.toISOString() },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, staffNotif);
+        }
 
         if (customer?.email) {
           const outboxNotif = manager.create(NotificationEntity, {
@@ -351,8 +447,8 @@ export class AppointmentsService {
             recipientUserId: customer.id,
             recipientEmail: customer.email,
             eventType: 'APPOINTMENT_RESCHEDULED',
-            channel: NotificationChannel.EMAIL,
-            status: NotificationStatus.PENDING,
+            channel: NotificationChannel.IN_APP,
+            status: NotificationStatus.SENT,
             retryCount: 0,
             payload: {
               appointmentId: updated.id,
@@ -366,6 +462,7 @@ export class AppointmentsService {
               resourceName: resource?.name || 'Profesional Asignado',
             },
             scheduledAt: new Date(),
+            processedAt: new Date(),
           });
           await manager.save(NotificationEntity, outboxNotif);
         }
@@ -444,10 +541,42 @@ export class AppointmentsService {
       });
       await manager.save(AppointmentEventEntity, event);
 
-      // Transactional Outbox: Notificación de cancelación
+      // Notificaciones Internas: Cancelación
       try {
         const customer = await manager.findOne(UserEntity, { where: { id: appointment.customerId } });
         const business = await manager.findOne(BusinessEntity, { where: { id: businessId } });
+        const resource = await manager.findOne(ResourceEntity, { where: { id: appointment.resourceId } });
+
+        if (customer) {
+          const customerNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: customer.id,
+            targetRole: 'CUSTOMER',
+            eventType: 'APPOINTMENT_CANCELLED',
+            title: 'Turno Cancelado',
+            message: `Tu turno para ${appointment.service?.name || 'Servicio'} ha sido cancelado.`,
+            data: {
+              appointmentId: updated.id,
+              reason: dto?.reason || 'Cancelado por solicitud del usuario',
+            },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, customerNotif);
+        }
+
+        if (resource?.userId) {
+          const staffNotif = manager.create(InAppNotificationEntity, {
+            businessId,
+            recipientUserId: resource.userId,
+            targetRole: 'STAFF',
+            eventType: 'APPOINTMENT_CANCELLED',
+            title: 'Turno Cancelado',
+            message: `Se canceló el turno con ${customer?.firstName || 'Cliente'} del ${appointment.startTime.toISOString()}.`,
+            data: { appointmentId: updated.id },
+            isRead: false,
+          });
+          await manager.save(InAppNotificationEntity, staffNotif);
+        }
 
         if (customer?.email) {
           const outboxNotif = manager.create(NotificationEntity, {
@@ -455,8 +584,8 @@ export class AppointmentsService {
             recipientUserId: customer.id,
             recipientEmail: customer.email,
             eventType: 'APPOINTMENT_CANCELLED',
-            channel: NotificationChannel.EMAIL,
-            status: NotificationStatus.PENDING,
+            channel: NotificationChannel.IN_APP,
+            status: NotificationStatus.SENT,
             retryCount: 0,
             payload: {
               appointmentId: updated.id,
@@ -467,6 +596,7 @@ export class AppointmentsService {
               reason: dto?.reason || 'Cancelado por solicitud del usuario',
             },
             scheduledAt: new Date(),
+            processedAt: new Date(),
           });
           await manager.save(NotificationEntity, outboxNotif);
         }

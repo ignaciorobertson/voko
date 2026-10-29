@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,6 +34,7 @@ import { databaseConfig } from './config/database.config';
         limit: 30,  // Máximo 30 solicitudes por minuto
       },
     ]),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     HealthModule,
     AuthModule,

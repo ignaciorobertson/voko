@@ -51,12 +51,12 @@
 
 ---
 
-### ADR-006: Desacoplamiento de Comunicaciones mediante Transactional Outbox
-- **Contexto:** Las confirmaciones y cancelaciones deben enviar correos o notificaciones (n8n, email), pero una falla de red externa no debe tumbar una reserva válida.
-- **Decisión:** Implementar el patrón **Transactional Outbox** con la tabla `notifications`.
+### ADR-006: Desacoplamiento de Comunicaciones y Notificaciones Internas (In-App)
+- **Contexto:** Las confirmaciones, reprogramaciones y cancelaciones deben notificar a usuarios y administradores sin introducir dependencias obligatorias de red externa que puedan ralentizar o hacer fallar una reserva válida.
+- **Decisión:** Implementar notificaciones internas en la entidad `in_app_notifications` y persistencia de eventos asíncronos mediante el patrón **Transactional Outbox**.
 - **Justificación:**
-  - Garantiza entrega al menos una vez (at-least-once delivery) sin acoplar la latencia del proveedor de correo a la respuesta HTTP del cliente.
-  - El sistema continúa operando al 100% incluso si el proveedor de correos o n8n sufre caídas temporales.
+  - Garantiza entrega y visualización instantánea dentro del centro de notificaciones de la plataforma sin consumir cuotas de servicios de email externos para operaciones rutinarias.
+  - El sistema continúa operando al 100% de manera autónoma sin servidores de automatización externos.
 
 ---
 
@@ -66,3 +66,12 @@
 - **Justificación:**
   - Argon2id es el estándar actual más seguro contra ataques GPU y side-channel.
   - Las cookies `HttpOnly` mitigan el robo de tokens por ataques XSS en navegadores web.
+
+---
+
+### ADR-008: Simplificación Arquitectónica: Supresión de n8n, Redis y Servicios Pagos
+- **Contexto:** Mantener un SaaS económicamente viable, simple de desplegar y con un mínimo costo de infraestructura en etapa productiva.
+- **Decisión:** Eliminar definitivamente servidores n8n o conectores externos obligatorios. Utilizar PostgreSQL y NestJS Scheduler (`@nestjs/schedule`) para la totalidad de procesos programados e idempotencia. Limitar el correo electrónico externo exclusivamente a la recuperación de contraseñas mediante proveedores gratuitos (Resend / Brevo) desacoplados.
+- **Justificación:**
+  - Reduce drásticamente los puntos de fallo y los costos mensuales de servidores y licencias.
+  - Otorga independencia y soberanía total sobre los datos relacionales y el motor de alertas.

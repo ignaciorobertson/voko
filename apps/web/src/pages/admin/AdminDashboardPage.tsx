@@ -19,7 +19,7 @@ import {
   BarChart3,
   UserPlus,
   History,
-  Mail,
+  Bell,
 } from 'lucide-react';
 import { businessesApi } from '../../api/businesses.api.js';
 import { authApi } from '../../api/auth.api.js';
@@ -281,7 +281,7 @@ export const AdminDashboardPage: React.FC = () => {
         {[
           { id: 'agenda', label: 'Agenda y Turnos', icon: Calendar },
           { id: 'clientes', label: 'Clientes (CRM)', icon: Users },
-          { id: 'notificaciones', label: 'Outbox & Notificaciones', icon: Mail },
+          { id: 'notificaciones', label: 'Notificaciones & Tareas', icon: Bell },
           { id: 'reportes', label: 'Métricas y Reportes', icon: BarChart3 },
           { id: 'equipo', label: 'Equipo e Invitaciones', icon: UserPlus },
           { id: 'disponibilidad', label: 'Horarios y Excepciones', icon: Clock },

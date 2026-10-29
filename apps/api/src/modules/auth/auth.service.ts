@@ -13,6 +13,7 @@ import { UserEntity } from '../../database/entities/user.entity';
 import { AuthSessionEntity } from '../../database/entities/auth-session.entity';
 import { PasswordResetEntity } from '../../database/entities/password-reset.entity';
 import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import { DecoupledEmailService } from './email/password-reset-email.provider';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly tokenService: TokenService,
+    private readonly emailService: DecoupledEmailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -142,6 +144,20 @@ export class AuthService {
         isUsed: false,
       }),
     );
+
+    // Despacho desacoplado de email de recuperación (Resend/Brevo/Local)
+    const resetBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${resetBaseUrl}/reset-password?token=${rawToken}`;
+    try {
+      await this.emailService.sendPasswordReset({
+        to: normalizedEmail,
+        userName: `${user.firstName} ${user.lastName}`.trim(),
+        resetLink,
+        debugToken: rawToken,
+      });
+    } catch (emailErr: any) {
+      this.logger.warn(`No se pudo despachar el email de reseteo: ${emailErr.message}`);
+    }
 
     this.logger.log(`Solicitud de recuperación de contraseña generada para ${normalizedEmail}`);
     return {

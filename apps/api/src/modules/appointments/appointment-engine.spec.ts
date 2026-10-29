@@ -14,6 +14,7 @@ import { AppointmentEntity } from '../../database/entities/appointment.entity';
 import { AppointmentEventEntity } from '../../database/entities/appointment-event.entity';
 import { InvitationEntity } from '../../database/entities/invitation.entity';
 import { NotificationEntity } from '../../database/entities/notification.entity';
+import { InAppNotificationEntity } from '../../database/entities/in-app-notification.entity';
 import { AuthSessionEntity } from '../../database/entities/auth-session.entity';
 import { PasswordResetEntity } from '../../database/entities/password-reset.entity';
 import { AuditLogEntity } from '../../database/entities/audit-log.entity';
@@ -84,6 +85,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
         AppointmentEventEntity,
         InvitationEntity,
         NotificationEntity,
+        InAppNotificationEntity,
         AuthSessionEntity,
         PasswordResetEntity,
         AuditLogEntity,

@@ -78,41 +78,39 @@ Este documento registra el estado de avance, validaciones técnicas y cumplimien
 
 ---
 
-## 📌 Hito 9: Notificaciones, Correos y Automatizaciones
-**Estado:** ✅ **Completado y Verificado**
+## 📌 Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automatizaciones Nativas (NestJS + PostgreSQL)
+**Estado:** ✅ **Completado y Verificado** (Adaptado según Decisión Arquitectónica de Simplificación)
 
 ### Criterios de Aceptación Obligatorios:
-1. **Servicio de email desacoplado mediante Outbox transaccional:**
-   - Patrón Transactional Outbox implementado mediante la entidad `NotificationEntity` en base de datos.
-   - Al crear, reprogramar o cancelar turnos en `AppointmentsService`, el evento se inserta en la misma transacción de PostgreSQL (`manager.save(NotificationEntity)`).
-   - El endpoint HTTP responde inmediatamente al cliente (`201 Created` / `200 OK`) con cero dependencia o latencia de servicios externos de red.
-   - Si el proveedor de correo falla temporalmente, la reserva se preserva íntegra y no sufre rollback.
-   - Despachador asíncrono `OutboxProcessorService` que procesa la cola de notificaciones pendientes de manera idempotente.
+1. **Sistema Propio de Notificaciones Internas (In-App):**
+   - Entidad relacional `InAppNotificationEntity` (`in_app_notifications`) en PostgreSQL con índices optimizados por usuario destinatario, estado de lectura (`is_read`) y fecha de creación (`created_at`).
+   - Al crear, reprogramar o cancelar reservas en `AppointmentsService`, se generan alertas internas atómicas en la misma transacción para el cliente y para el profesional/administrador del negocio.
+   - Endpoints de usuario: `GET /notifications/in-app` (con paginación y filtro `isRead`), `GET /notifications/in-app/unread-count`, `PATCH /notifications/in-app/:id/read` y `PATCH /notifications/in-app/read-all`.
+   - Centro de notificaciones interactivo en frontend (`NotificationCenter.tsx`) integrado en `Navbar.tsx` con campana, badge animado de no leídas, popover reactivo, distinción visual de estados y marcado como leído.
 
-2. **Plantillas de confirmación, cancelación, reprogramación y recordatorios:**
-   - Servicio de renderizado responsivo `TemplatesService` con versión HTML visualmente cuidada y versión de texto plano (fallback accesible y anti-spam):
-     - `APPOINTMENT_CONFIRMED`: Detalle de servicio, fecha/hora, profesional, sucursal, dirección y precio.
-     - `APPOINTMENT_CANCELLED`: Motivo de cancelación, aviso al cliente y opción de reagendar.
-     - `APPOINTMENT_RESCHEDULED`: Comparativa entre horario anterior y nuevo horario asignado.
-     - `APPOINTMENT_REMINDER`: Recordatorio de turno 24 horas antes con advertencia de puntualidad y ubicación.
-   - Modal interactivo de previsualización en el panel web para administradores (`NotificationsTab.tsx`).
+2. **Servicio de Email Desacoplado Exclusivo para Recuperación de Contraseña:**
+   - Interfaz desacoplada `IEmailProvider` implementada mediante `DecoupledEmailService`.
+   - Soporte para **Resend** (plan gratuito de 3.000 envíos/mes), **Brevo** (plan gratuito de 300 envíos/día) y fallback seguro `LocalLogEmailProvider` (desarrollo local y tests sin claves externas).
+   - Integrado exclusivamente en el flujo de seguridad `POST /auth/forgot-password` (`AuthService.forgotPassword()`).
+   - El resto de las comunicaciones (confirmaciones, cancelaciones, recordatorios) operan 100% internas vía in-app, protegiendo las cuotas gratuitas del SaaS.
 
-3. **Reintentos automáticos sin duplicación de mensajes (Backoff Exponencial e Idempotencia):**
-   - Transición de estados: `PENDING` ➔ `SENT` (éxito) o `PENDING` ➔ `RETRYING` ➔ `FAILED` (tras alcanzar el límite máximo de reintentos, por defecto 3).
-   - Cálculo de backoff exponencial: `scheduledAt = NOW() + (2 ^ retryCount * baseDelaySeconds)` para no saturar al receptor ni al servidor.
-   - Idempotencia estricta: las notificaciones marcadas como `SENT` son ignoradas por ejecuciones posteriores del worker, eliminando duplicados.
-   - Soporte para reintento manual inmediato desde la interfaz y API (`POST /businesses/:id/notifications/:notifId/retry`).
+3. **Automatizaciones Nativas con NestJS Scheduler y PostgreSQL (Sin Redis ni BullMQ):**
+   - Mecanismo implementado en `RemindersSchedulerService` con `@nestjs/schedule` y `@Cron()`.
+   - **Escaneo periódico de citas próximas de 24 horas (`handleUpcomingRemindersCron`)**: detecta citas confirmadas y genera notificaciones internas para clientes y profesionales con estricta garantía de idempotencia (cero duplicaciones en ejecuciones consecutivas).
+   - **Mantenimiento y purga de seguridad (`handleMaintenanceCleanupCron`)**: limpieza programada nocturna de tokens de restablecimiento expirados en `password_resets` y sesiones revocadas antiguas.
+   - Persistencia relacional íntegra: todos los trabajos sobreviven a caídas y reinicios del servidor backend.
 
-4. **Contrato de webhooks para n8n documentado:**
-   - Documento técnico formal creado en `docs/architecture/n8n_webhooks_contract.md`.
-   - Especificación completa de encabezados HTTP: `Content-Type`, `X-Voko-Event`, `X-Voko-Signature` (HMAC SHA-256), `X-Voko-Timestamp`, `X-Voko-Delivery-Id` (UUID de idempotencia).
-   - Ejemplos de payloads JSON para cada uno de los 4 eventos clave y snippet JavaScript para validación en el nodo Code de n8n.
-   - Servicio `N8nSenderService` con generación automática de firma HMAC y manejo seguro de timeouts.
+4. **Eliminación Total de n8n y Dependencias de Pago:**
+   - Desinstalación y supresión definitiva de `N8nSenderService`, contratos de webhooks y referencias a n8n.
+   - Eliminación del canal `N8N_WEBHOOK` en el catálogo de enums `@voko/shared`.
+   - Adaptación de la pestaña administrativa `NotificationsTab.tsx` eliminando modales de n8n y enfocándola en métricas de notificaciones internas y tareas operativas.
+   - Cero servidores auxiliares o servicios de suscripción requeridos para operar.
 
-5. **El sistema opera normalmente sin n8n:**
-   - Desacoplamiento total verificado: si n8n no está configurado, está apagado o responde con error, el canal de correo electrónico y el flujo central de reservas siguen operando al 100% sin interrupciones.
+5. **Principio de Autonomía y Resiliencia del SaaS:**
+   - Todas las funcionalidades centrales de reservas, agenda, clientes, catálogo y paneles operan al 100% de forma autónoma sin consumir APIs externas obligatorias.
+   - Manejo tolerante a fallas en el envío de emails: si el proveedor externo falla o se agota su cuota, el sistema no colapsa ni bloquea la experiencia del usuario.
 
 ### Cobertura de Pruebas:
-- Suite específica: `src/modules/notifications/hito9-notifications.spec.ts` (15 pruebas de integración y resiliencia pasando al 100%).
-- Suite global del proyecto: **107/107 pruebas pasando (9 suites exitosas)**.
+- Suite específica: `src/modules/notifications/hito9-notifications.spec.ts` (12 pruebas automáticas de notificaciones in-app, email desacoplado y schedulers pasando al 100%).
+- Suite global del proyecto: **104/104 pruebas pasando (9 suites exitosas)**.
 - Compilación y build: TypeScript, NestJS y Vite empaquetan en producción con código de salida **0**.

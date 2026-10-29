@@ -5,6 +5,7 @@ import * as argon2 from 'argon2';
 import { TokenService } from './token.service';
 import { AuthService } from './auth.service';
 import { InvitationsService } from '../invitations/invitations.service';
+import { DecoupledEmailService } from './email/password-reset-email.provider';
 import {
   ALL_ENTITIES,
   UserEntity,
@@ -43,6 +44,7 @@ describe('Hito 3: Autenticación, Usuarios y Autorización Multiempresa', () => 
         AuthService,
         InvitationsService,
         TokenService,
+        DecoupledEmailService,
         {
           provide: DataSource,
           useValue: dataSource,

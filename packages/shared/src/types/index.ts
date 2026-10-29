@@ -3,7 +3,7 @@ import {
   BookingMode,
   ConfirmationMode,
   BusinessStatus,
-} from '../enums/index.js';
+} from '../enums';
 
 export interface ApiResponse<T> {
   data: T;
@@ -147,4 +147,24 @@ export interface BusinessDetail {
   branches?: BranchDetail[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InAppNotificationItem {
+  id: string;
+  businessId?: string;
+  recipientUserId: string;
+  targetRole?: string;
+  eventType: string;
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+export interface InAppNotificationSummary {
+  items: InAppNotificationItem[];
+  total: number;
+  unreadCount: number;
 }

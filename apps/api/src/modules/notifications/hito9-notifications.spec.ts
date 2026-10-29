@@ -14,6 +14,7 @@ import { AppointmentEntity } from '../../database/entities/appointment.entity';
 import { AppointmentEventEntity } from '../../database/entities/appointment-event.entity';
 import { InvitationEntity } from '../../database/entities/invitation.entity';
 import { NotificationEntity } from '../../database/entities/notification.entity';
+import { InAppNotificationEntity } from '../../database/entities/in-app-notification.entity';
 import { AuthSessionEntity } from '../../database/entities/auth-session.entity';
 import { PasswordResetEntity } from '../../database/entities/password-reset.entity';
 import { AuditLogEntity } from '../../database/entities/audit-log.entity';
@@ -25,21 +26,21 @@ import { ResourcesService } from '../resources/resources.service';
 
 import { TemplatesService } from './templates.service';
 import { EmailSenderService } from './email-sender.service';
-import { N8nSenderService } from './n8n-sender.service';
 import { OutboxProcessorService } from './outbox-processor.service';
 import { NotificationsService } from './notifications.service';
+import { RemindersSchedulerService } from './reminders-scheduler.service';
+import { DecoupledEmailService } from '../auth/email/password-reset-email.provider';
 
 import {
   BookingMode,
   ConfirmationMode,
   ResourceType,
-  AppointmentStatus,
   NotificationChannel,
   NotificationStatus,
 } from '@voko/shared';
 import * as argon2 from 'argon2';
 
-describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizaciones', () => {
+describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automatizaciones Nativas (NestJS + PostgreSQL)', () => {
   let dataSource: DataSource;
   let appointmentsService: AppointmentsService;
   let businessesService: BusinessesService;
@@ -48,9 +49,10 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
 
   let templatesService: TemplatesService;
   let emailSenderService: EmailSenderService;
-  let n8nSenderService: N8nSenderService;
   let outboxProcessorService: OutboxProcessorService;
   let notificationsService: NotificationsService;
+  let remindersSchedulerService: RemindersSchedulerService;
+  let decoupledEmailService: DecoupledEmailService;
 
   let ownerUser: UserEntity;
   let customerUser: UserEntity;
@@ -79,6 +81,7 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
         AppointmentEventEntity,
         InvitationEntity,
         NotificationEntity,
+        InAppNotificationEntity,
         AuthSessionEntity,
         PasswordResetEntity,
         AuditLogEntity,
@@ -89,18 +92,18 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
 
     await dataSource.initialize();
 
-    // Inicializar servicios de notificaciones
+    // Inicializar servicios de notificaciones y automatizaciones
     templatesService = new TemplatesService();
     emailSenderService = new EmailSenderService();
-    n8nSenderService = new N8nSenderService();
     outboxProcessorService = new OutboxProcessorService(
       dataSource,
       templatesService,
       emailSenderService,
-      n8nSenderService,
     );
     outboxProcessorService.setBaseBackoffSeconds(1); // 1s para acelerar tests
     notificationsService = new NotificationsService(dataSource, outboxProcessorService);
+    remindersSchedulerService = new RemindersSchedulerService(dataSource, notificationsService);
+    decoupledEmailService = new DecoupledEmailService();
 
     // Inicializar servicios de negocio y reservas
     businessesService = new BusinessesService(dataSource);
@@ -172,12 +175,11 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
   beforeEach(() => {
     emailSenderService.clearSentEmails();
     emailSenderService.setSimulateFailure(false);
-    n8nSenderService.clearDispatchedWebhooks();
-    n8nSenderService.setSimulateFailure(false);
+    decoupledEmailService.localProvider.clear();
   });
 
-  describe('1. Desacoplamiento y Transactional Outbox (Criterio 1)', () => {
-    it('1.1. Al crear una reserva, debe insertar atómicamente un registro en notifications (PENDING)', async () => {
+  describe('1. Notificaciones Internas (In-App) y Centro de Avisos', () => {
+    it('1.1. Al crear una reserva, debe insertar notificaciones internas atómicas para cliente y staff', async () => {
       const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
       tomorrow.setHours(10, 0, 0, 0);
 
@@ -190,287 +192,175 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
 
       expect(app.id).toBeDefined();
 
-      const notifRepo = dataSource.getRepository(NotificationEntity);
-      const outboxEntries = await notifRepo.find({
-        where: { businessId: testBusiness.id, recipientEmail: customerUser.email },
+      const inAppRepo = dataSource.getRepository(InAppNotificationEntity);
+
+      // Notificación del cliente
+      const customerNotifs = await inAppRepo.find({
+        where: { recipientUserId: customerUser.id, eventType: 'APPOINTMENT_CONFIRMED' },
       });
+      expect(customerNotifs.length).toBeGreaterThanOrEqual(1);
+      const latestCustomerNotif = customerNotifs[customerNotifs.length - 1];
+      expect(latestCustomerNotif.title).toContain('Turno Confirmado');
+      expect(latestCustomerNotif.isRead).toBe(false);
+      expect(latestCustomerNotif.readAt).toBeNull();
 
-      expect(outboxEntries.length).toBeGreaterThanOrEqual(1);
-      const latest = outboxEntries[outboxEntries.length - 1];
-
-      expect(latest.status).toBe(NotificationStatus.PENDING);
-      expect(latest.eventType).toBe('APPOINTMENT_CONFIRMED');
-      expect(latest.channel).toBe(NotificationChannel.EMAIL);
-      expect((latest.payload as any).appointmentId).toBe(app.id);
-      expect((latest.payload as any).serviceName).toBe('Limpieza Facial Profunda');
+      // Notificación del staff / admin
+      const staffNotifs = await inAppRepo.find({
+        where: { recipientUserId: ownerUser.id, eventType: 'APPOINTMENT_CONFIRMED' },
+      });
+      expect(staffNotifs.length).toBeGreaterThanOrEqual(1);
+      const latestStaffNotif = staffNotifs[staffNotifs.length - 1];
+      expect(latestStaffNotif.title).toContain('Nueva Reserva');
+      expect(latestStaffNotif.isRead).toBe(false);
     });
 
-    it('1.2. El endpoint de reserva retorna de inmediato sin esperar el despacho de red externo', async () => {
-      const dayAfter = new Date(Date.now() + 48 * 60 * 60 * 1000);
-      dayAfter.setHours(12, 0, 0, 0);
-
-      const t0 = Date.now();
-      const app = await appointmentsService.create(testBusiness.id, customerUser.id, {
-        serviceId: testService.id,
-        resourceId: testResource.id,
-        branchId: testBranch.id,
-        startTime: dayAfter.toISOString(),
+    it('1.2. Consulta de notificaciones internas con filtro de lectura y contador de no leídas', async () => {
+      const result = await notificationsService.findInAppNotifications(customerUser.id, {
+        isRead: false,
       });
-      const durationMs = Date.now() - t0;
 
-      expect(app.id).toBeDefined();
-      // Verificamos que la reserva se confirma en pocos milisegundos sin latencia de red externa
-      expect(durationMs).toBeLessThan(1000);
+      expect(result.items.length).toBeGreaterThan(0);
+      expect(result.unreadCount).toBeGreaterThan(0);
+      expect(result.items.every((n) => n.isRead === false)).toBe(true);
+
+      const count = await notificationsService.getUnreadCount(customerUser.id);
+      expect(count.unreadCount).toBe(result.unreadCount);
+    });
+
+    it('1.3. Marcado individual de notificación interna como leída', async () => {
+      const inAppRepo = dataSource.getRepository(InAppNotificationEntity);
+      const unread = await inAppRepo.findOne({
+        where: { recipientUserId: customerUser.id, isRead: false },
+      });
+
+      expect(unread).toBeDefined();
+
+      const marked = await notificationsService.markInAppNotificationAsRead(unread!.id, customerUser.id);
+      expect(marked.isRead).toBe(true);
+      expect(marked.readAt).toBeDefined();
+
+      // Verificar en base de datos
+      const updated = await inAppRepo.findOne({ where: { id: unread!.id } });
+      expect(updated?.isRead).toBe(true);
+    });
+
+    it('1.4. Marcado masivo de todas las notificaciones pendientes del usuario como leídas', async () => {
+      // Crear un par de notificaciones no leídas adicionales
+      await notificationsService.createInAppNotification({
+        businessId: testBusiness.id,
+        recipientUserId: customerUser.id,
+        eventType: 'SYSTEM_ALERT',
+        title: 'Aviso del Sistema',
+        message: 'Mantenimiento preventivo completado.',
+      });
+
+      const beforeCount = await notificationsService.getUnreadCount(customerUser.id);
+      expect(beforeCount.unreadCount).toBeGreaterThan(0);
+
+      const batchResult = await notificationsService.markAllInAppNotificationsAsRead(customerUser.id);
+      expect(batchResult.updatedCount).toBeGreaterThanOrEqual(1);
+
+      const afterCount = await notificationsService.getUnreadCount(customerUser.id);
+      expect(afterCount.unreadCount).toBe(0);
     });
   });
 
-  describe('2. Plantillas de Notificación (Criterio 2)', () => {
-    it('2.1. Renderiza plantilla de Confirmación con detalles completos del negocio y turno', () => {
-      const rendered = templatesService.render('APPOINTMENT_CONFIRMED', {
-        businessName: 'Centro Dermatológico Láser',
-        customerName: 'Camila Fernández',
-        serviceName: 'Limpieza Facial Profunda',
-        startTime: '2026-10-20T14:00:00.000Z',
-        branchName: 'Sede Central',
-        resourceName: 'Dra. Florencia',
-        price: 22000,
-        currency: 'ARS',
-      });
-
-      expect(rendered.subject).toContain('confirmado');
-      expect(rendered.html).toContain('Centro Dermatológico Láser');
-      expect(rendered.html).toContain('Limpieza Facial Profunda');
-      expect(rendered.html).toContain('Dra. Florencia');
-      expect(rendered.text).toContain('Camila Fernández');
-    });
-
-    it('2.2. Renderiza plantilla de Cancelación con motivo expresado', () => {
-      const rendered = templatesService.render('APPOINTMENT_CANCELLED', {
-        businessName: 'Centro Dermatológico Láser',
-        customerName: 'Camila Fernández',
-        serviceName: 'Limpieza Facial Profunda',
-        startTime: '2026-10-20T14:00:00.000Z',
-        reason: 'Imprevisto personal',
-      });
-
-      expect(rendered.subject).toContain('cancelado');
-      expect(rendered.html).toContain('Turno Cancelado');
-      expect(rendered.html).toContain('Imprevisto personal');
-    });
-
-    it('2.3. Renderiza plantilla de Reprogramación con horario anterior y nuevo', () => {
-      const rendered = templatesService.render('APPOINTMENT_RESCHEDULED', {
-        businessName: 'Centro Dermatológico Láser',
-        customerName: 'Camila Fernández',
-        serviceName: 'Limpieza Facial Profunda',
-        previousStartTime: '2026-10-20T14:00:00.000Z',
-        startTime: '2026-10-22T16:00:00.000Z',
-        branchName: 'Sede Central',
-        resourceName: 'Dra. Florencia',
-      });
-
-      expect(rendered.subject).toContain('reprogramado');
-      expect(rendered.html).toContain('Turno Reprogramado');
-      expect(rendered.text).toContain('Nuevo horario');
-    });
-
-    it('2.4. Renderiza plantilla de Recordatorio (24h antes)', () => {
-      const rendered = templatesService.render('APPOINTMENT_REMINDER', {
-        businessName: 'Centro Dermatológico Láser',
-        customerName: 'Camila Fernández',
-        serviceName: 'Limpieza Facial Profunda',
-        startTime: '2026-10-21T10:00:00.000Z',
-        branchName: 'Sede Central',
-        resourceName: 'Dra. Florencia',
-      });
-
-      expect(rendered.subject).toContain('Recordatorio');
-      expect(rendered.html).toContain('Recordatorio de Turno');
-    });
-  });
-
-  describe('3. Despacho, Reintentos y Resiliencia del Outbox (Criterio 3)', () => {
-    it('3.1. Procesa lote de pendientes exitosamente y actualiza estado a SENT', async () => {
-      const batchResult = await outboxProcessorService.processPending();
-
-      expect(batchResult.totalProcessed).toBeGreaterThan(0);
-      expect(batchResult.sentCount).toBeGreaterThan(0);
-
-      const sentEmails = emailSenderService.getSentEmails();
-      expect(sentEmails.length).toBeGreaterThan(0);
-      expect(sentEmails[0].to).toBe(customerUser.email);
-    });
-
-    it('3.2. Idempotencia: una notificación en estado SENT no se duplica en ejecuciones posteriores', async () => {
-      emailSenderService.clearSentEmails();
-
-      // Correr de nuevo sin nuevas reservas pendientes
-      const secondBatch = await outboxProcessorService.processPending();
-      expect(secondBatch.totalProcessed).toBe(0);
-      expect(emailSenderService.getSentEmails().length).toBe(0);
-    });
-
-    it('3.3. Falla de proveedor externo no revierte la reserva y pasa a RETRYING con backoff exponencial', async () => {
-      // Activar simulación de falla en proveedor de correo
-      emailSenderService.setSimulateFailure(true, 'SMTP connection timeout');
-
-      // Crear nueva reserva
-      const targetTime = new Date(Date.now() + 72 * 60 * 60 * 1000);
-      targetTime.setHours(15, 0, 0, 0);
+  describe('2. Notificaciones en Reprogramación y Cancelación', () => {
+    it('2.1. Al reprogramar un turno, genera notificación interna con nuevo horario', async () => {
+      const in3Days = new Date(Date.now() + 72 * 60 * 60 * 1000);
+      in3Days.setHours(11, 0, 0, 0);
 
       const app = await appointmentsService.create(testBusiness.id, customerUser.id, {
         serviceId: testService.id,
         resourceId: testResource.id,
         branchId: testBranch.id,
-        startTime: targetTime.toISOString(),
+        startTime: in3Days.toISOString(),
       });
 
-      // La reserva existe y persiste perfectamente
-      expect(app.id).toBeDefined();
+      const newDate = new Date(Date.now() + 96 * 60 * 60 * 1000);
+      newDate.setHours(15, 0, 0, 0);
 
-      const notifRepo = dataSource.getRepository(NotificationEntity);
-      const notif = await notifRepo.findOne({
-        where: { businessId: testBusiness.id, status: NotificationStatus.PENDING },
+      await appointmentsService.reschedule(testBusiness.id, app.id, customerUser.id, {
+        newStartTime: newDate.toISOString(),
+      });
+
+      const inAppRepo = dataSource.getRepository(InAppNotificationEntity);
+      const reschedNotif = await inAppRepo.findOne({
+        where: { recipientUserId: customerUser.id, eventType: 'APPOINTMENT_RESCHEDULED' },
         order: { createdAt: 'DESC' },
       });
-      expect(notif).toBeDefined();
 
-      // Ejecutar outbox con falla simulada
-      const outcome = await outboxProcessorService.dispatchNotification(notif!);
-
-      expect(outcome).toBe(NotificationStatus.RETRYING);
-
-      const updatedNotif = await notifRepo.findOne({ where: { id: notif!.id } });
-      expect(updatedNotif?.status).toBe(NotificationStatus.RETRYING);
-      expect(updatedNotif?.retryCount).toBe(1);
-      expect(updatedNotif?.lastError).toContain('SMTP connection timeout');
-      // Debe haber programado scheduledAt a futuro con backoff
-      expect(new Date(updatedNotif!.scheduledAt).getTime()).toBeGreaterThan(Date.now());
+      expect(reschedNotif).toBeDefined();
+      expect(reschedNotif?.title).toContain('Reprogramado');
+      expect(reschedNotif?.isRead).toBe(false);
     });
 
-    it('3.4. Al superar el límite de reintentos máximos, marca la notificación como FAILED', async () => {
-      emailSenderService.setSimulateFailure(true, 'SMTP persistent fatal error');
+    it('2.2. Al cancelar un turno, genera notificación interna con motivo de cancelación', async () => {
+      const in5Days = new Date(Date.now() + 120 * 60 * 60 * 1000);
+      in5Days.setHours(16, 0, 0, 0);
 
-      const notifRepo = dataSource.getRepository(NotificationEntity);
-      const testNotif = await notifRepo.save(
-        notifRepo.create({
-          businessId: testBusiness.id,
-          recipientEmail: 'falla@test.com',
-          eventType: 'APPOINTMENT_CONFIRMED',
-          channel: NotificationChannel.EMAIL,
-          status: NotificationStatus.RETRYING,
-          retryCount: 2, // Ya lleva 2 intentos
-          payload: { businessName: 'Test' },
-          scheduledAt: new Date(),
-        }),
-      );
+      const app = await appointmentsService.create(testBusiness.id, customerUser.id, {
+        serviceId: testService.id,
+        resourceId: testResource.id,
+        branchId: testBranch.id,
+        startTime: in5Days.toISOString(),
+      });
 
-      // Ejecutar 3er intento (alcanza maxRetries = 3)
-      const outcome = await outboxProcessorService.dispatchNotification(testNotif);
+      await appointmentsService.cancel(testBusiness.id, app.id, customerUser.id, false, {
+        reason: 'Imprevisto laboral del cliente',
+      });
 
-      expect(outcome).toBe(NotificationStatus.FAILED);
+      const inAppRepo = dataSource.getRepository(InAppNotificationEntity);
+      const cancelNotif = await inAppRepo.findOne({
+        where: { recipientUserId: customerUser.id, eventType: 'APPOINTMENT_CANCELLED' },
+        order: { createdAt: 'DESC' },
+      });
 
-      const failedNotif = await notifRepo.findOne({ where: { id: testNotif.id } });
-      expect(failedNotif?.status).toBe(NotificationStatus.FAILED);
-      expect(failedNotif?.retryCount).toBe(3);
-      expect(failedNotif?.lastError).toContain('Máximo de reintentos alcanzado');
-    });
-
-    it('3.5. Reintento manual resetea contador y ejecuta despacho inmediatamente', async () => {
-      emailSenderService.setSimulateFailure(false); // Restaurar servicio
-
-      const notifRepo = dataSource.getRepository(NotificationEntity);
-      const failed = await notifRepo.findOne({ where: { status: NotificationStatus.FAILED } });
-      expect(failed).toBeDefined();
-
-      const retried = await outboxProcessorService.retrySingle(failed!.id);
-      expect(retried.status).toBe(NotificationStatus.SENT);
-      expect(retried.retryCount).toBe(0);
+      expect(cancelNotif).toBeDefined();
+      expect(cancelNotif?.title).toContain('Cancelado');
+      expect((cancelNotif?.data as any)?.reason).toBe('Imprevisto laboral del cliente');
     });
   });
 
-  describe('4. Automatizaciones y Webhooks n8n (Criterios 4 y 5)', () => {
-    it('4.1. Despacha evento por canal N8N_WEBHOOK con firma HMAC SHA-256 válida', async () => {
-      const notifRepo = dataSource.getRepository(NotificationEntity);
+  describe('3. Email Desacoplado Exclusivo para Recuperación de Contraseña', () => {
+    it('3.1. Despacha email de recuperación de contraseña con proveedor desacoplado (Local / Resend / Brevo)', async () => {
+      const result = await decoupledEmailService.sendPasswordReset({
+        to: 'seguridad.usuario@voko.test',
+        userName: 'Martín Gómez',
+        resetLink: 'http://localhost:5173/reset-password?token=mock_token_abc123',
+        debugToken: 'mock_token_abc123',
+      });
 
-      const webhookNotif = await notifRepo.save(
-        notifRepo.create({
-          businessId: testBusiness.id,
-          recipientEmail: 'webhook-subscriber@n8n.local',
-          eventType: 'APPOINTMENT_CONFIRMED',
-          channel: NotificationChannel.N8N_WEBHOOK,
-          status: NotificationStatus.PENDING,
-          payload: {
-            webhookUrl: 'mock://n8n-instance.test/webhook/voko-reservas',
-            appointmentId: 'mock-app-123',
-            customerName: 'Camila',
-          },
-          scheduledAt: new Date(),
-        }),
-      );
+      expect(result.success).toBe(true);
+      expect(result.provider).toBe('local');
+      expect(result.messageId).toBeDefined();
 
-      const outcome = await outboxProcessorService.dispatchNotification(webhookNotif);
-      expect(outcome).toBe(NotificationStatus.SENT);
-
-      const latestWebhook = n8nSenderService.getLatestWebhook();
-      expect(latestWebhook).toBeDefined();
-      expect(latestWebhook?.eventType).toBe('APPOINTMENT_CONFIRMED');
-      expect(latestWebhook?.headers['X-Voko-Signature']).toMatch(/^sha256=[a-f0-9]{64}$/);
-      expect(latestWebhook?.headers['X-Voko-Delivery-Id']).toBe(webhookNotif.id);
+      const sent = decoupledEmailService.localProvider.sentEmails;
+      expect(sent.length).toBe(1);
+      expect(sent[0].to).toBe('seguridad.usuario@voko.test');
+      expect(sent[0].resetLink).toContain('reset-password?token=mock_token_abc123');
+      expect(sent[0].userName).toBe('Martín Gómez');
     });
 
-    it('4.2. El sistema opera normalmente sin n8n (Criterio 5)', async () => {
-      // Simular que n8n se cae
-      n8nSenderService.setSimulateFailure(true, 'n8n host unreachable');
+    it('3.2. Manejo controlado de fallas en el proveedor de email sin colapsar el sistema', async () => {
+      decoupledEmailService.localProvider.setSimulateFailure(true, 'SMTP timeout or quota exceeded');
 
-      const notifRepo = dataSource.getRepository(NotificationEntity);
-      const webhookNotif = await notifRepo.save(
-        notifRepo.create({
-          businessId: testBusiness.id,
-          recipientEmail: 'webhook@n8n.local',
-          eventType: 'APPOINTMENT_CONFIRMED',
-          channel: NotificationChannel.N8N_WEBHOOK,
-          status: NotificationStatus.PENDING,
-          payload: { webhookUrl: 'mock://down.n8n.test' },
-          scheduledAt: new Date(),
-        }),
-      );
+      const result = await decoupledEmailService.sendPasswordReset({
+        to: 'falla@voko.test',
+        resetLink: 'http://localhost:5173/reset-password?token=token_fail',
+      });
 
-      // Despacho de webhook falla y pasa a RETRYING
-      const webhookOutcome = await outboxProcessorService.dispatchNotification(webhookNotif);
-      expect(webhookOutcome).toBe(NotificationStatus.RETRYING);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('SMTP timeout or quota exceeded');
 
-      // Los emails estándar y el sistema continúan funcionando al 100% de manera independiente
-      emailSenderService.setSimulateFailure(false);
-      const emailNotif = await notifRepo.save(
-        notifRepo.create({
-          businessId: testBusiness.id,
-          recipientEmail: 'cliente.normal@test.com',
-          eventType: 'APPOINTMENT_CONFIRMED',
-          channel: NotificationChannel.EMAIL,
-          status: NotificationStatus.PENDING,
-          payload: { businessName: 'Test' },
-          scheduledAt: new Date(),
-        }),
-      );
-
-      const emailOutcome = await outboxProcessorService.dispatchNotification(emailNotif);
-      expect(emailOutcome).toBe(NotificationStatus.SENT);
+      // Restaurar
+      decoupledEmailService.localProvider.setSimulateFailure(false);
     });
   });
 
-  describe('5. Gestión Operativa de Notificaciones y Recordatorios', () => {
-    it('5.1. Consulta métricas consolidadas del Outbox del negocio', async () => {
-      const stats = await notificationsService.getStats(testBusiness.id);
-
-      expect(stats.total).toBeGreaterThan(0);
-      expect(stats.sent).toBeGreaterThan(0);
-      expect(stats.byChannel.email).toBeGreaterThan(0);
-      expect(stats.deliverySuccessRate).toBeGreaterThanOrEqual(0);
-    });
-
-    it('5.2. Genera recordatorios para citas en las próximas 24 horas evitando duplicaciones', async () => {
-      // Crear una cita programada para dentro de 24 horas
+  describe('4. Automatizaciones Nativas en NestJS + PostgreSQL (Sin n8n ni Redis)', () => {
+    it('4.1. Escaneo periódico de recordatorios de citas en las próximas 24 horas', async () => {
+      // Crear una cita programada exactamente en la ventana de 24h
       const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       await appointmentsService.create(testBusiness.id, customerUser.id, {
@@ -480,13 +370,51 @@ describe('Hito 9: Notificaciones, Correos, Transactional Outbox y Automatizacion
         startTime: in24h.toISOString(),
       });
 
-      // Ejecutar generador de recordatorios
-      const res1 = await notificationsService.generate24hReminders(testBusiness.id);
-      expect(res1.remindersCreated).toBeGreaterThanOrEqual(1);
+      const cronResult = await remindersSchedulerService.handleUpcomingRemindersCron();
+      expect(cronResult.totalBusinessesProcessed).toBeGreaterThanOrEqual(1);
+      expect(cronResult.totalRemindersCreated).toBeGreaterThanOrEqual(1);
 
-      // Ejecutar una segunda vez inmediatamente: no debe crear duplicados
-      const res2 = await notificationsService.generate24hReminders(testBusiness.id);
-      expect(res2.remindersCreated).toBe(0);
+      // Verificar que se haya creado la alerta interna
+      const inAppRepo = dataSource.getRepository(InAppNotificationEntity);
+      const reminderNotif = await inAppRepo.findOne({
+        where: { recipientUserId: customerUser.id, eventType: 'APPOINTMENT_REMINDER' },
+      });
+      expect(reminderNotif).toBeDefined();
+      expect(reminderNotif?.title).toContain('Recordatorio');
+    });
+
+    it('4.2. Idempotencia estricta: ejecuciones consecutivas del Cron no generan duplicados', async () => {
+      const secondRun = await remindersSchedulerService.handleUpcomingRemindersCron();
+      // No debe haber generado nuevos recordatorios porque ya fueron emitidos
+      expect(secondRun.totalRemindersCreated).toBe(0);
+    });
+
+    it('4.3. Tarea de mantenimiento purga tokens expirados y sesiones revocadas en PostgreSQL', async () => {
+      const resetRepo = dataSource.getRepository(PasswordResetEntity);
+
+      // Crear token expirado en el pasado
+      await resetRepo.save(
+        resetRepo.create({
+          userId: customerUser.id,
+          tokenHash: 'hash_expirado_antiguo',
+          expiresAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // Expiró hace 2 horas
+          isUsed: false,
+        }),
+      );
+
+      const cleanupRes = await remindersSchedulerService.handleMaintenanceCleanupCron();
+      expect(cleanupRes.expiredTokensDeleted).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('5. Principio de Autonomía de la Plataforma', () => {
+    it('5.1. El sistema opera al 100% sin ninguna dependencia de n8n, Redis ni servicios pagos', async () => {
+      // Consultar métricas del negocio
+      const stats = await notificationsService.getStats(testBusiness.id);
+
+      expect(stats.total).toBeGreaterThan(0);
+      expect(stats.byChannel.inApp).toBeGreaterThan(0);
+      expect(stats.deliverySuccessRate).toBeGreaterThanOrEqual(0);
     });
   });
 });

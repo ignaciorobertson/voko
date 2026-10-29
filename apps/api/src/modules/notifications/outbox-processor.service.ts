@@ -4,7 +4,6 @@ import { NotificationEntity } from '../../database/entities/notification.entity'
 import { NotificationStatus, NotificationChannel } from '@voko/shared';
 import { TemplatesService } from './templates.service';
 import { EmailSenderService } from './email-sender.service';
-import { N8nSenderService } from './n8n-sender.service';
 
 export interface ProcessBatchResult {
   totalProcessed: number;
@@ -23,7 +22,6 @@ export class OutboxProcessorService {
     private readonly dataSource: DataSource,
     private readonly templatesService: TemplatesService,
     private readonly emailSenderService: EmailSenderService,
-    private readonly n8nSenderService: N8nSenderService,
   ) {}
 
   setMaxRetries(max: number): void {
@@ -85,7 +83,7 @@ export class OutboxProcessorService {
       let isSuccess = false;
       let errorDescription: string | undefined;
 
-      // Canal EMAIL
+      // Canal EMAIL (ej. para tareas outbox asíncronas de email)
       if (notification.channel === NotificationChannel.EMAIL) {
         const rendered = this.templatesService.render(
           notification.eventType,
@@ -101,25 +99,9 @@ export class OutboxProcessorService {
 
         isSuccess = sendRes.success;
         errorDescription = sendRes.error;
-      }
-      // Canal N8N_WEBHOOK
-      else if (notification.channel === NotificationChannel.N8N_WEBHOOK) {
-        const webhookUrl =
-          (notification.payload?.webhookUrl as string) ||
-          process.env.N8N_WEBHOOK_URL ||
-          'http://localhost:5678/webhook/voko-events';
-
-        const webhookRes = await this.n8nSenderService.sendWebhook({
-          webhookUrl,
-          eventType: notification.eventType,
-          payload: notification.payload,
-          notificationId: notification.id,
-        });
-
-        isSuccess = webhookRes.success;
-        errorDescription = webhookRes.error;
       } else {
-        errorDescription = `Canal desconocido: ${notification.channel}`;
+        // Para canales internos no-email (o IN_APP), se marca como procesado
+        isSuccess = true;
       }
 
       if (isSuccess) {

@@ -80,3 +80,54 @@ export class TestPreviewDto {
   @IsObject()
   payload!: Record<string, any>;
 }
+
+export class InAppNotificationQueryDto {
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  isRead?: boolean;
+
+  @ApiPropertyOptional({ default: 50 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  offset?: number;
+}
+
+export class CreateInAppNotificationDto {
+  @ApiPropertyOptional({ example: '05952d76-e170-4bc3-9596-fce1d2f6fb39' })
+  @IsOptional()
+  @IsString()
+  businessId?: string;
+
+  @ApiProperty({ example: 'f87a8f1e-f3b1-4f11-8255-a50d2c67b361' })
+  @IsString()
+  recipientUserId!: string;
+
+  @ApiPropertyOptional({ example: 'CUSTOMER' })
+  @IsOptional()
+  @IsString()
+  targetRole?: string;
+
+  @ApiProperty({ example: 'APPOINTMENT_CONFIRMED' })
+  @IsString()
+  eventType!: string;
+
+  @ApiProperty({ example: 'Turno Confirmado' })
+  @IsString()
+  title!: string;
+
+  @ApiProperty({ example: 'Tu turno para Corte Clásico fue confirmado.' })
+  @IsString()
+  message!: string;
+
+  @ApiPropertyOptional({ example: { appointmentId: '...' } })
+  @IsOptional()
+  @IsObject()
+  data?: Record<string, any>;
+}

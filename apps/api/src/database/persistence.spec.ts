@@ -47,9 +47,9 @@ describe('Hito 2: Pruebas de Persistencia, Relaciones e Integridad Referencial',
     }
   });
 
-  it('1. Debe inicializar el DataSource con las 18 entidades registradas', () => {
+  it('1. Debe inicializar el DataSource con las 19 entidades registradas', () => {
     expect(dataSource.isInitialized).toBe(true);
-    expect(ALL_ENTITIES.length).toBe(18);
+    expect(ALL_ENTITIES.length).toBe(19);
   });
 
   it('2. Debe persistir y recuperar usuarios con campos de auditoría', async () => {
