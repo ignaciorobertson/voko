@@ -9,8 +9,6 @@ import { ServiceEntity } from '../../database/entities/service.entity';
 import { BranchEntity } from '../../database/entities/branch.entity';
 import { ResourceEntity } from '../../database/entities/resource.entity';
 import { BusinessMembershipEntity } from '../../database/entities/business-membership.entity';
-import { TemplatesService } from './templates.service';
-import { EmailSenderService } from './email-sender.service';
 import { OutboxProcessorService } from './outbox-processor.service';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
@@ -32,8 +30,6 @@ import { RemindersSchedulerService } from './reminders-scheduler.service';
     ]),
   ],
   providers: [
-    TemplatesService,
-    EmailSenderService,
     OutboxProcessorService,
     NotificationsService,
     RemindersSchedulerService,
@@ -42,8 +38,6 @@ import { RemindersSchedulerService } from './reminders-scheduler.service';
   exports: [
     NotificationsService,
     OutboxProcessorService,
-    TemplatesService,
-    EmailSenderService,
     RemindersSchedulerService,
   ],
 })

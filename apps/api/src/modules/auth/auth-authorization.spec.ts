@@ -24,6 +24,7 @@ describe('Hito 3: Autenticación, Usuarios y Autorización Multiempresa', () => 
   let authService: AuthService;
   let invitationsService: InvitationsService;
   let tokenService: TokenService;
+  let emailService: DecoupledEmailService;
 
   beforeAll(async () => {
     dataSource = new DataSource({
@@ -55,6 +56,7 @@ describe('Hito 3: Autenticación, Usuarios y Autorización Multiempresa', () => 
     authService = module.get<AuthService>(AuthService);
     invitationsService = module.get<InvitationsService>(InvitationsService);
     tokenService = module.get<TokenService>(TokenService);
+    emailService = module.get<DecoupledEmailService>(DecoupledEmailService);
   });
 
   afterAll(async () => {
@@ -163,10 +165,18 @@ describe('Hito 3: Autenticación, Usuarios y Autorización Multiempresa', () => 
   describe('3. Recuperación Segura de Contraseña', () => {
     it('debe generar token de restablecimiento y permitir actualizar la contraseña revocando sesiones previas', async () => {
       const forgotResult = await authService.forgotPassword({ email: 'nicolas@voko.test' });
-      expect(forgotResult.debugToken).toBeDefined();
+      expect(forgotResult.message).toContain('instrucciones');
+
+      const sentEmail = emailService.localProvider.sentEmails.find(
+        (e) => e.to === 'nicolas@voko.test',
+      );
+      expect(sentEmail).toBeDefined();
+      const url = new URL(sentEmail!.resetLink);
+      const token = url.searchParams.get('token');
+      expect(token).toBeDefined();
 
       const resetResult = await authService.resetPassword({
-        token: forgotResult.debugToken!,
+        token: token!,
         newPassword: 'NuevaPassword2026Robusta!',
       });
       expect(resetResult.message).toContain('Contraseña actualizada con éxito');

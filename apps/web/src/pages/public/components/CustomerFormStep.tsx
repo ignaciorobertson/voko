@@ -145,7 +145,7 @@ export const CustomerFormStep: React.FC<CustomerFormStepProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Teléfono o WhatsApp <span className="text-red-500">*</span>
+              Teléfono de Contacto <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />

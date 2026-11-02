@@ -186,7 +186,7 @@ export class UpdateBusinessSettingsDto {
   @Matches(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
   brandSecondaryColor?: string;
 
-  @ApiPropertyOptional({ example: { sendWhatsappReminder: false } })
+  @ApiPropertyOptional({ example: { inAppRemindersEnabled: true } })
   @IsOptional()
   customNotificationConfig?: Record<string, unknown>;
 }

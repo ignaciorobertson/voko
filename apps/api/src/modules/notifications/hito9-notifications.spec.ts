@@ -24,12 +24,10 @@ import { BusinessesService } from '../businesses/businesses.service';
 import { ServicesService } from '../services/services.service';
 import { ResourcesService } from '../resources/resources.service';
 
-import { TemplatesService } from './templates.service';
-import { EmailSenderService } from './email-sender.service';
 import { OutboxProcessorService } from './outbox-processor.service';
 import { NotificationsService } from './notifications.service';
 import { RemindersSchedulerService } from './reminders-scheduler.service';
-import { DecoupledEmailService } from '../auth/email/password-reset-email.provider';
+import { DecoupledEmailService, ResendEmailProvider } from '../auth/email/password-reset-email.provider';
 
 import {
   BookingMode,
@@ -40,15 +38,13 @@ import {
 } from '@voko/shared';
 import * as argon2 from 'argon2';
 
-describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automatizaciones Nativas (NestJS + PostgreSQL)', () => {
+describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado con Resend y Automatizaciones Nativas (NestJS + PostgreSQL)', () => {
   let dataSource: DataSource;
   let appointmentsService: AppointmentsService;
   let businessesService: BusinessesService;
   let servicesService: ServicesService;
   let resourcesService: ResourcesService;
 
-  let templatesService: TemplatesService;
-  let emailSenderService: EmailSenderService;
   let outboxProcessorService: OutboxProcessorService;
   let notificationsService: NotificationsService;
   let remindersSchedulerService: RemindersSchedulerService;
@@ -93,13 +89,7 @@ describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automati
     await dataSource.initialize();
 
     // Inicializar servicios de notificaciones y automatizaciones
-    templatesService = new TemplatesService();
-    emailSenderService = new EmailSenderService();
-    outboxProcessorService = new OutboxProcessorService(
-      dataSource,
-      templatesService,
-      emailSenderService,
-    );
+    outboxProcessorService = new OutboxProcessorService(dataSource);
     outboxProcessorService.setBaseBackoffSeconds(1); // 1s para acelerar tests
     notificationsService = new NotificationsService(dataSource, outboxProcessorService);
     remindersSchedulerService = new RemindersSchedulerService(dataSource, notificationsService);
@@ -173,8 +163,6 @@ describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automati
   });
 
   beforeEach(() => {
-    emailSenderService.clearSentEmails();
-    emailSenderService.setSimulateFailure(false);
     decoupledEmailService.localProvider.clear();
   });
 
@@ -328,7 +316,6 @@ describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado y Automati
         to: 'seguridad.usuario@voko.test',
         userName: 'Martín Gómez',
         resetLink: 'http://localhost:5173/reset-password?token=mock_token_abc123',
-        debugToken: 'mock_token_abc123',
       });
 
       expect(result.success).toBe(true);

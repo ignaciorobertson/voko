@@ -8,6 +8,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage.js';
 import { PublicBookingPage } from './pages/public/PublicBookingPage.js';
 import { CustomerPortalPage } from './pages/portal/CustomerPortalPage.js';
 import { SuperadminDashboardPage } from './pages/superadmin/SuperadminDashboardPage.js';
+import { PlaygroundPage } from './pages/playground/PlaygroundPage.js';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +23,7 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col justify-between bg-slate-50">
+        <div className="min-h-screen flex flex-col justify-between bg-[#120f17] text-zinc-100">
           <div>
             <Navbar />
             <main>
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
                 <Route path="/superadmin" element={<SuperadminDashboardPage />} />
                 <Route path="/portal" element={<CustomerPortalPage />} />
                 <Route path="/mi-cuenta" element={<CustomerPortalPage />} />
+                <Route path="/playground" element={<PlaygroundPage />} />
                 <Route path="/b/:slug" element={<PublicBookingPage />} />
                 <Route path="/:slug" element={<PublicBookingPage />} />
                 <Route path="*" element={<HomePage />} />

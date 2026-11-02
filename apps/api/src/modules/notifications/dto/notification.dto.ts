@@ -71,16 +71,6 @@ export class CreateOutboxNotificationDto {
   scheduledAt?: Date;
 }
 
-export class TestPreviewDto {
-  @ApiProperty({ example: 'APPOINTMENT_CONFIRMED', enum: ['APPOINTMENT_CONFIRMED', 'APPOINTMENT_CANCELLED', 'APPOINTMENT_RESCHEDULED', 'APPOINTMENT_REMINDER'] })
-  @IsString()
-  eventType!: 'APPOINTMENT_CONFIRMED' | 'APPOINTMENT_CANCELLED' | 'APPOINTMENT_RESCHEDULED' | 'APPOINTMENT_REMINDER';
-
-  @ApiProperty({ example: { businessName: 'Voko Barber', customerName: 'Lucas Paz', serviceName: 'Corte Clásico', startTime: '2026-10-15T15:00:00Z' } })
-  @IsObject()
-  payload!: Record<string, any>;
-}
-
 export class InAppNotificationQueryDto {
   @ApiPropertyOptional({ example: false })
   @IsOptional()

@@ -23,4 +23,62 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
+  .bg-grid-pattern {
+    background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
+  }
+
+  .shiny-text {
+    background: linear-gradient(
+      110deg,
+      #93c5fd 25%,
+      #ffffff 50%,
+      #38bdf8 75%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s infinite linear;
+  }
+
+  .neon-card {
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 30px -5px rgba(37, 99, 235, 0.25), 0 0 15px rgba(56, 189, 248, 0.15);
+  }
+
+  .neon-card:hover {
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 45px -5px rgba(56, 189, 248, 0.4), 0 0 20px rgba(96, 165, 250, 0.25);
+  }
+
+  .neon-btn {
+    background: linear-gradient(135deg, #2563eb 0%, #0284c7 50%, #38bdf8 100%);
+    box-shadow: 0 0 20px rgba(2, 132, 199, 0.35);
+  }
+
+  .neon-btn:hover {
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.6), 0 0 15px rgba(37, 99, 235, 0.4);
+  }
+
+  .monochrome-card {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.95), 0 0 30px rgba(255, 255, 255, 0.03);
+  }
+
+  .monochrome-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.95), 0 0 45px rgba(255, 255, 255, 0.06);
+  }
+
+  .monochrome-btn {
+    background: #ffffff;
+    color: #09090b;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.2);
+  }
+
+  .monochrome-btn:hover {
+    background: #f4f4f5;
+    box-shadow: 0 0 35px rgba(255, 255, 255, 0.35);
+  }
 }

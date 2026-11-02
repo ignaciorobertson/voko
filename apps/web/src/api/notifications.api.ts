@@ -58,12 +58,6 @@ export interface NotificationListResponse {
   offset: number;
 }
 
-export interface TemplatePreviewResponse {
-  subject: string;
-  html: string;
-  text: string;
-}
-
 export const notificationsApi = {
   async getNotifications(
     businessId: string,
@@ -102,20 +96,6 @@ export const notificationsApi = {
   async retryNotification(businessId: string, notificationId: string): Promise<NotificationItem> {
     const res = await apiClient.post(
       `/businesses/${businessId}/notifications/${notificationId}/retry`,
-    );
-    return res.data;
-  },
-
-  async testPreview(
-    businessId: string,
-    payload: {
-      eventType: 'APPOINTMENT_CONFIRMED' | 'APPOINTMENT_CANCELLED' | 'APPOINTMENT_RESCHEDULED' | 'APPOINTMENT_REMINDER';
-      payload: Record<string, any>;
-    },
-  ): Promise<TemplatePreviewResponse> {
-    const res = await apiClient.post<TemplatePreviewResponse>(
-      `/businesses/${businessId}/notifications/test-preview`,
-      payload,
     );
     return res.data;
   },

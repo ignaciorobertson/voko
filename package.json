@@ -18,7 +18,9 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "docker:up": "docker compose -f docker/docker-compose.dev.yml up -d",
-    "docker:down": "docker compose -f docker/docker-compose.dev.yml down"
+    "docker:down": "docker compose -f docker/docker-compose.dev.yml down",
+    "migration:run": "npm run migration:run --workspace=apps/api",
+    "seed": "npm run seed --workspace=apps/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

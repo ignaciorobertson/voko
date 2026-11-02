@@ -15,10 +15,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts",
-    "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert",
-    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "ts-node -r tsconfig-paths/register src/database/run-migrations.ts",
+    "migration:revert": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:revert",
+    "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/run-seeds.ts",
     "create:superadmin": "ts-node -r tsconfig-paths/register src/modules/auth/scripts/create-superadmin.ts"
   },
@@ -44,6 +43,7 @@
     "passport-jwt": "^4.0.1",
     "pg": "^8.13.3",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.37.0",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.20"

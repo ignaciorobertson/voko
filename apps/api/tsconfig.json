@@ -11,6 +11,7 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "noImplicitAny": true,
@@ -19,7 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "rootDir": "src",
     "paths": {
-      "@voko/shared": ["../../packages/shared/dist/index.d.ts"]
+      "@voko/shared": ["../../packages/shared/dist/index"]
     }
   },
   "include": ["src/**/*"],

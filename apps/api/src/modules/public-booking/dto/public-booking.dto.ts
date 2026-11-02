@@ -25,7 +25,7 @@ export class PublicCustomerDto {
   @IsEmail()
   email!: string;
 
-  @ApiPropertyOptional({ example: '+54 11 5555-8888', description: 'Teléfono o WhatsApp' })
+  @ApiPropertyOptional({ example: '+54 11 5555-8888', description: 'Teléfono de contacto' })
   @IsOptional()
   @IsString()
   phone?: string;

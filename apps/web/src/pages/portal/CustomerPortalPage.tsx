@@ -596,7 +596,7 @@ export const CustomerPortalPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Teléfono / WhatsApp de Contacto
+                  Teléfono de Contacto
                 </label>
                 <input
                   type="tel"

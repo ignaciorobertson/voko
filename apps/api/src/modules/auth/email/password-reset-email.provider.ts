@@ -1,23 +1,117 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Resend } from 'resend';
 
 export interface SendPasswordResetEmailOptions {
   to: string;
   userName?: string;
   resetLink: string;
-  debugToken?: string;
 }
 
 export interface EmailProviderResult {
   success: boolean;
   messageId?: string;
   error?: string;
-  provider: 'resend' | 'brevo' | 'local';
+  provider: 'resend' | 'local';
 }
 
 export interface IEmailProvider {
   sendPasswordResetEmail(options: SendPasswordResetEmailOptions): Promise<EmailProviderResult>;
 }
 
+/**
+ * Plantilla HTML profesional y adaptable para recuperación de contraseñas
+ */
+function buildPasswordResetHtml(options: SendPasswordResetEmailOptions): string {
+  const currentYear = new Date().getFullYear();
+  const displayName = options.userName ? ` ${options.userName}` : '';
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Restablecer Contraseña — Voko</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+    .container { max-width: 580px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .header { background-color: #1e40af; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .header p { color: #bfdbfe; margin: 6px 0 0 0; font-size: 13px; font-weight: 500; }
+    .content { padding: 36px 40px; }
+    .greeting { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 16px; }
+    .lead { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 28px; }
+    .button-container { text-align: center; margin: 32px 0; }
+    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
+    .notice { background-color: #f1f5f9; border-left: 4px solid #3b82f6; padding: 14px 16px; border-radius: 6px; font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 24px; }
+    .fallback { font-size: 12px; color: #64748b; line-height: 1.5; word-break: break-all; }
+    .fallback a { color: #2563eb; text-decoration: underline; }
+    .footer { background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 40px; text-align: center; font-size: 12px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Voko</h1>
+      <p>Gestión Inteligente de Turnos y Reservas</p>
+    </div>
+    <div class="content">
+      <h2 class="greeting">Hola${displayName},</h2>
+      <p class="lead">Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Voko</strong>. Haz clic en el siguiente botón para continuar:</p>
+      
+      <div class="button-container">
+        <a href="${options.resetLink}" class="btn" target="_blank">Restablecer mi Contraseña</a>
+      </div>
+
+      <div class="notice">
+        <strong>Importante:</strong> Este enlace es de <strong>un solo uso</strong> y vence en <strong>1 hora</strong> por motivos de seguridad.
+      </div>
+
+      <p class="fallback">
+        Si el botón no funciona, copia y pega el siguiente enlace directo en tu navegador web:<br>
+        <a href="${options.resetLink}">${options.resetLink}</a>
+      </p>
+
+      <p class="fallback" style="margin-top: 20px;">
+        Si tú no solicitaste este cambio, puedes desestimar este mensaje con tranquilidad. Tu contraseña actual no ha sido modificada.
+      </p>
+    </div>
+    <div class="footer">
+      © ${currentYear} Voko SaaS. Plataforma de alta disponibilidad para turnos y reservas.<br>
+      Este es un correo automático de seguridad, por favor no respondas a esta dirección.
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Plantilla en texto plano para clientes de correo sin soporte HTML
+ */
+function buildPasswordResetText(options: SendPasswordResetEmailOptions): string {
+  const displayName = options.userName ? ` ${options.userName}` : '';
+  return `
+Voko — Restablecer Contraseña
+
+Hola${displayName},
+
+Recibimos una solicitud para restablecer la contraseña de tu cuenta en Voko.
+
+Para crear una nueva contraseña, ingresa al siguiente enlace seguro:
+${options.resetLink}
+
+Este enlace es de uso único y tiene una vigencia de 1 hora.
+
+Si no solicitaste este restablecimiento, desestima este mensaje. Tu cuenta continúa protegida.
+
+© ${new Date().getFullYear()} Voko SaaS
+  `.trim();
+}
+
+/**
+ * Proveedor Local en Memoria para Desarrollo y Pruebas Unitarias/E2E
+ */
 @Injectable()
 export class LocalLogEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(LocalLogEmailProvider.name);
@@ -27,7 +121,7 @@ export class LocalLogEmailProvider implements IEmailProvider {
 
   async sendPasswordResetEmail(options: SendPasswordResetEmailOptions): Promise<EmailProviderResult> {
     if (this.simulateFailure) {
-      this.logger.warn(`[SIMULACIÓN DE FALLO] Error enviando correo de reseteo a: ${options.to}`);
+      this.logger.warn(`[SIMULACIÓN DE FALLO] Error simulado enviando correo de reseteo a: ${options.to}`);
       return {
         success: false,
         error: this.failureErrorText,
@@ -43,7 +137,7 @@ export class LocalLogEmailProvider implements IEmailProvider {
     });
 
     this.logger.log(
-      `🔑 [Recuperación de Contraseña] Email local despachado a ${options.to} | Link: ${options.resetLink} | ID: ${messageId}`,
+      `🔑 [Recuperación de Contraseña] Email despachado a ${options.to} | ID: ${messageId}`,
     );
 
     return {
@@ -63,120 +157,53 @@ export class LocalLogEmailProvider implements IEmailProvider {
   }
 }
 
+/**
+ * Proveedor Oficial de Correo mediante SDK de Resend
+ */
 @Injectable()
 export class ResendEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name);
+  private readonly resend: Resend;
 
-  constructor(private readonly apiKey: string) {}
+  constructor(private readonly apiKey: string) {
+    this.resend = new Resend(apiKey);
+  }
 
   async sendPasswordResetEmail(options: SendPasswordResetEmailOptions): Promise<EmailProviderResult> {
     try {
-      const fromEmail = process.env.EMAIL_FROM || 'Voko <onboarding@resend.dev>';
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [options.to],
-          subject: 'Recuperación de contraseña — Voko',
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-              <h2 style="color: #2563eb;">Voko — Restablecer Contraseña</h2>
-              <p>Hola${options.userName ? ` ${options.userName}` : ''},</p>
-              <p>Has solicitado restablecer tu contraseña en Voko. Haz clic en el siguiente enlace para continuar:</p>
-              <p style="margin: 24px 0;">
-                <a href="${options.resetLink}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
-                  Restablecer Contraseña
-                </a>
-              </p>
-              <p style="color: #64748b; font-size: 13px;">Si no solicitaste este cambio, puedes ignorar este correo de forma segura. El enlace expirará en 1 hora.</p>
-            </div>
-          `,
-          text: `Voko - Restablecer Contraseña\n\nHola${options.userName ? ` ${options.userName}` : ''},\nHas solicitado restablecer tu contraseña. Ingresa a este enlace:\n${options.resetLink}\n\nSi no lo solicitaste, ignora este mensaje.`,
-        }),
+      const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || 'Voko <onboarding@resend.dev>';
+      
+      const { data, error } = await this.resend.emails.send({
+        from: fromEmail,
+        to: [options.to],
+        subject: 'Restablecer tu contraseña — Voko',
+        html: buildPasswordResetHtml(options),
+        text: buildPasswordResetText(options),
       });
 
-      if (!res.ok) {
-        const errBody = await res.text();
-        this.logger.error(`Error en API Resend (${res.status}): ${errBody}`);
+      if (error) {
+        this.logger.error(`Error en API oficial de Resend: ${error.name} - ${error.message}`);
         return {
           success: false,
-          error: `Resend HTTP ${res.status}: ${errBody}`,
+          error: error.message,
           provider: 'resend',
         };
       }
 
-      const data = (await res.json()) as { id?: string };
+      this.logger.log(`📧 [Resend] Correo de recuperación enviado con éxito a ${options.to} (ID: ${data?.id})`);
+
       return {
         success: true,
-        messageId: data.id,
+        messageId: data?.id,
         provider: 'resend',
       };
-    } catch (err: any) {
-      this.logger.error(`Excepción al conectar con Resend: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Excepción al conectar con el SDK de Resend: ${message}`);
       return {
         success: false,
-        error: err.message,
+        error: message,
         provider: 'resend',
-      };
-    }
-  }
-}
-
-@Injectable()
-export class BrevoEmailProvider implements IEmailProvider {
-  private readonly logger = new Logger(BrevoEmailProvider.name);
-
-  constructor(private readonly apiKey: string) {}
-
-  async sendPasswordResetEmail(options: SendPasswordResetEmailOptions): Promise<EmailProviderResult> {
-    try {
-      const fromEmail = process.env.EMAIL_FROM || 'no-reply@voko.app';
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': this.apiKey,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          sender: { name: 'Voko', email: fromEmail },
-          to: [{ email: options.to, name: options.userName || 'Usuario' }],
-          subject: 'Recuperación de contraseña — Voko',
-          htmlContent: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2>Restablecer contraseña en Voko</h2>
-              <p>Haz clic en el enlace para restablecer tu contraseña:</p>
-              <p><a href="${options.resetLink}">${options.resetLink}</a></p>
-            </div>
-          `,
-          textContent: `Restablecer contraseña en Voko: ${options.resetLink}`,
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        return {
-          success: false,
-          error: `Brevo HTTP ${res.status}: ${errText}`,
-          provider: 'brevo',
-        };
-      }
-
-      const data = (await res.json()) as { messageId?: string };
-      return {
-        success: true,
-        messageId: data.messageId,
-        provider: 'brevo',
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err.message,
-        provider: 'brevo',
       };
     }
   }
@@ -184,7 +211,7 @@ export class BrevoEmailProvider implements IEmailProvider {
 
 /**
  * Servicio Desacoplado de Envío de Email para Seguridad
- * Selecciona el proveedor adecuado según variables de entorno (Resend -> Brevo -> Local).
+ * Selecciona el proveedor adecuado según variables de entorno (Resend SDK o Local/Dev).
  */
 @Injectable()
 export class DecoupledEmailService {
@@ -194,14 +221,10 @@ export class DecoupledEmailService {
 
   constructor() {
     const resendKey = process.env.RESEND_API_KEY;
-    const brevoKey = process.env.BREVO_API_KEY;
 
-    if (resendKey && resendKey.trim().length > 0) {
-      this.logger.log('📧 Proveedor de correo configurado: RESEND (Free Tier)');
+    if (resendKey && resendKey.trim().length > 0 && !resendKey.includes('re_placeholder')) {
+      this.logger.log('📧 Proveedor de correo configurado: RESEND (SDK Oficial)');
       this.provider = new ResendEmailProvider(resendKey.trim());
-    } else if (brevoKey && brevoKey.trim().length > 0) {
-      this.logger.log('📧 Proveedor de correo configurado: BREVO (Free Tier)');
-      this.provider = new BrevoEmailProvider(brevoKey.trim());
     } else {
       this.logger.log('📧 Proveedor de correo configurado: LOCAL / DEV (Sin dependencia externa)');
       this.provider = this.localProvider;
@@ -220,4 +243,3 @@ export class DecoupledEmailService {
     return this.provider.sendPasswordResetEmail(options);
   }
 }
-

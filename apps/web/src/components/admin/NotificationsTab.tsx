@@ -8,9 +8,7 @@ import {
   CheckCircle2,
   XCircle,
   Bell,
-  Eye,
   RotateCcw,
-  Sparkles,
   ShieldCheck,
   Code,
   X,
@@ -18,7 +16,6 @@ import {
 import {
   notificationsApi,
   NotificationItem,
-  TemplatePreviewResponse,
 } from '../../api/notifications.api.js';
 import { NotificationChannel, NotificationStatus } from '@voko/shared';
 
@@ -29,20 +26,12 @@ interface NotificationsTabProps {
 
 export const NotificationsTab: React.FC<NotificationsTabProps> = ({
   businessId,
-  businessName = 'Tu Negocio',
 }) => {
   const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<NotificationStatus | 'ALL'>('ALL');
   const [channelFilter, setChannelFilter] = useState<NotificationChannel | 'ALL'>('ALL');
   const [selectedPayload, setSelectedPayload] = useState<NotificationItem | null>(null);
-
-  // Modal de Vista Previa de Plantilla
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewEventType, setPreviewEventType] = useState<
-    'APPOINTMENT_CONFIRMED' | 'APPOINTMENT_CANCELLED' | 'APPOINTMENT_RESCHEDULED' | 'APPOINTMENT_REMINDER'
-  >('APPOINTMENT_CONFIRMED');
-  const [previewResult, setPreviewResult] = useState<TemplatePreviewResponse | null>(null);
 
   // Modal de Arquitectura info
   const [isArchInfoOpen, setIsArchInfoOpen] = useState(false);
@@ -116,36 +105,6 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
     },
   });
 
-  // Mutación: Generar vista previa de plantilla
-  const previewMutation = useMutation({
-    mutationFn: (eventType: any) =>
-      notificationsApi.testPreview(businessId, {
-        eventType,
-        payload: {
-          businessName,
-          customerName: 'Lucas Paciente',
-          serviceName: 'Consulta Médica de Especialidad',
-          startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          previousStartTime: new Date().toISOString(),
-          branchName: 'Sede Central',
-          branchAddress: 'Av. Libertador 4500',
-          resourceName: 'Dr. Roberto Cardiólogo',
-          price: 15000,
-          currency: 'ARS',
-          reason: 'Reprogramación solicitada por el paciente',
-        },
-      }),
-    onSuccess: (data) => {
-      setPreviewResult(data);
-    },
-  });
-
-  const handleOpenPreview = (type: any) => {
-    setPreviewEventType(type);
-    setIsPreviewOpen(true);
-    previewMutation.mutate(type);
-  };
-
   return (
     <div className="space-y-6">
       {/* Mensaje de Feedback */}
@@ -173,13 +132,6 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => handleOpenPreview('APPOINTMENT_CONFIRMED')}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Plantillas Email
-          </button>
           <button
             onClick={() => setIsArchInfoOpen(true)}
             className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
@@ -454,76 +406,6 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 onClick={() => setSelectedPayload(null)}
-                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: VISTA PREVIA DE PLANTILLAS */}
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-bold text-slate-900">Vista Previa de Plantillas de Correo</h3>
-              </div>
-              <button
-                onClick={() => setIsPreviewOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Selector de plantilla */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { type: 'APPOINTMENT_CONFIRMED', label: '1. Confirmación' },
-                { type: 'APPOINTMENT_CANCELLED', label: '2. Cancelación' },
-                { type: 'APPOINTMENT_RESCHEDULED', label: '3. Reprogramación' },
-                { type: 'APPOINTMENT_REMINDER', label: '4. Recordatorio 24h' },
-              ].map((t) => (
-                <button
-                  key={t.type}
-                  onClick={() => handleOpenPreview(t.type as any)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    previewEventType === t.type
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {previewMutation.isPending || !previewResult ? (
-              <div className="p-8 text-center text-slate-400 text-xs">Renderizando plantilla...</div>
-            ) : (
-              <div className="space-y-3">
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-                  <p>
-                    <strong>Asunto:</strong> <span className="text-slate-800">{previewResult.subject}</span>
-                  </p>
-                </div>
-
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                  <div
-                    className="p-4 bg-slate-50 max-h-96 overflow-y-auto"
-                    dangerouslySetInnerHTML={{ __html: previewResult.html }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setIsPreviewOpen(false)}
                 className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
               >
                 Cerrar

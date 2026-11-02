@@ -15,6 +15,12 @@ import { runDevSeeds } from './seeds/dev-seeds';
         try {
           await dataSource.initialize();
           logger.log('✅ Conexión con PostgreSQL establecida exitosamente.');
+          const hasPendingMigrations = await dataSource.showMigrations();
+          if (hasPendingMigrations) {
+            logger.log('🔄 Ejecutando migraciones pendientes en PostgreSQL...');
+            await dataSource.runMigrations();
+            logger.log('✅ Migraciones completadas en PostgreSQL.');
+          }
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
           logger.warn(

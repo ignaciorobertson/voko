@@ -231,7 +231,7 @@ export const ManualAppointmentModal: React.FC<Props> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Teléfono / WhatsApp</label>
+                <label className="block text-xs text-slate-400 mb-1">Teléfono de Contacto</label>
                 <input
                   type="tel"
                   placeholder="+54 9 11 5555-1234"

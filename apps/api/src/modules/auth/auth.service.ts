@@ -121,7 +121,7 @@ export class AuthService {
     return { success: true };
   }
 
-  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string; debugToken?: string }> {
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const userRepo = this.dataSource.getRepository(UserEntity);
     const resetRepo = this.dataSource.getRepository(PasswordResetEntity);
     const normalizedEmail = dto.email.trim().toLowerCase();
@@ -145,24 +145,22 @@ export class AuthService {
       }),
     );
 
-    // Despacho desacoplado de email de recuperación (Resend/Brevo/Local)
-    const resetBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Despacho desacoplado de email de recuperación (Resend / Local)
+    const resetBaseUrl = process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetLink = `${resetBaseUrl}/reset-password?token=${rawToken}`;
     try {
       await this.emailService.sendPasswordReset({
         to: normalizedEmail,
         userName: `${user.firstName} ${user.lastName}`.trim(),
         resetLink,
-        debugToken: rawToken,
       });
     } catch (emailErr: any) {
       this.logger.warn(`No se pudo despachar el email de reseteo: ${emailErr.message}`);
     }
 
-    this.logger.log(`Solicitud de recuperación de contraseña generada para ${normalizedEmail}`);
+    this.logger.log(`Solicitud de recuperación de contraseña procesada para ${normalizedEmail}`);
     return {
       message: 'Si el correo existe en el sistema, recibirá instrucciones para restablecer su contraseña.',
-      ...(process.env.NODE_ENV !== 'production' ? { debugToken: rawToken } : {}),
     };
   }
 

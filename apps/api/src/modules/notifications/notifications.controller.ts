@@ -4,7 +4,6 @@ import {
   Post,
   Param,
   Query,
-  Body,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -14,11 +13,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
-import { TemplatesService } from './templates.service';
-import {
-  NotificationQueryDto,
-  TestPreviewDto,
-} from './dto/notification.dto';
+import { NotificationQueryDto } from './dto/notification.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { TenantContextGuard } from '../../common/guards/tenant-context.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -32,13 +27,12 @@ import { UserRole } from '@voko/shared';
 export class NotificationsController {
   constructor(
     private readonly notificationsService: NotificationsService,
-    private readonly templatesService: TemplatesService,
   ) {}
 
   @Get()
   @RequireRoles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiParam({ name: 'businessId', description: 'ID del negocio' })
-  @ApiOperation({ summary: 'Consultar cola de Transactional Outbox y notificaciones del negocio' })
+  @ApiOperation({ summary: 'Listar notificaciones registradas del negocio con filtros' })
   async findByBusiness(
     @Param('businessId') businessId: string,
     @Query() query: NotificationQueryDto,
@@ -49,7 +43,7 @@ export class NotificationsController {
   @Get('stats')
   @RequireRoles(UserRole.OWNER, UserRole.ADMIN, UserRole.STAFF)
   @ApiParam({ name: 'businessId', description: 'ID del negocio' })
-  @ApiOperation({ summary: 'Obtener métricas consolidadas del Transactional Outbox' })
+  @ApiOperation({ summary: 'Obtener métricas y tasas de entrega del Transactional Outbox' })
   async getStats(@Param('businessId') businessId: string) {
     return await this.notificationsService.getStats(businessId);
   }
@@ -57,7 +51,7 @@ export class NotificationsController {
   @Post('dispatch')
   @RequireRoles(UserRole.OWNER, UserRole.ADMIN)
   @ApiParam({ name: 'businessId', description: 'ID del negocio' })
-  @ApiOperation({ summary: 'Forzar despacho inmediato de notificaciones pendientes en la cola' })
+  @ApiOperation({ summary: 'Disparar manualmente el procesamiento del lote de notificaciones' })
   async dispatchBatch() {
     return await this.notificationsService.processBatch();
   }
@@ -65,7 +59,7 @@ export class NotificationsController {
   @Post('dispatch-reminders')
   @RequireRoles(UserRole.OWNER, UserRole.ADMIN)
   @ApiParam({ name: 'businessId', description: 'ID del negocio' })
-  @ApiOperation({ summary: 'Escanear turnos de las próximas 24 horas y generar recordatorios en el Outbox' })
+  @ApiOperation({ summary: 'Escanear turnos de las próximas 24 horas y generar recordatorios internos' })
   async dispatchReminders(@Param('businessId') businessId: string) {
     return await this.notificationsService.generate24hReminders(businessId);
   }
@@ -80,13 +74,5 @@ export class NotificationsController {
     @Param('id') notificationId: string,
   ) {
     return await this.notificationsService.retryNotification(businessId, notificationId);
-  }
-
-  @Post('test-preview')
-  @RequireRoles(UserRole.OWNER, UserRole.ADMIN)
-  @ApiParam({ name: 'businessId', description: 'ID del negocio' })
-  @ApiOperation({ summary: 'Generar vista previa interactiva de una plantilla de correo' })
-  testPreview(@Body() dto: TestPreviewDto) {
-    return this.templatesService.render(dto.eventType, dto.payload);
   }
 }

@@ -1,65 +1,55 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Layers, LayoutDashboard, Shield } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Shield, Sparkles } from 'lucide-react';
 import { NotificationCenter } from './notifications/NotificationCenter.js';
+import { playDewSound } from '../utils/soundEffects.js';
+import { VokoLogo } from './VokoLogo.js';
 
 export const Navbar: React.FC = () => {
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <header className="sticky top-0 z-50 bg-[#120f17]/90 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.8)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-3">
-          <img
-            src="/brand/voko-logo.svg"
-            alt="Logotipo Voko"
-            className="h-10 w-auto"
-          />
+        <Link to="/" onClick={() => playDewSound()} className="flex items-center space-x-3 group">
+          <VokoLogo className="h-10 w-auto group-hover:scale-105 transition-transform drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
         </Link>
 
-        <nav className="hidden md:flex items-center space-x-5">
+        <nav className="hidden md:flex items-center space-x-2.5">
           <Link
-            to="/"
-            className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
+            to="/playground"
+            onClick={() => playDewSound()}
+            className="text-xs font-semibold text-white transition-all flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/20 hover:border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] group"
           >
-            <Layers className="w-4 h-4" />
-            Inicio
+            <Sparkles className="w-3.5 h-3.5 text-zinc-300 group-hover:text-white animate-pulse" />
+            <span>Playground de Reservas</span>
           </Link>
           <Link
             to="/portal"
-            className="text-sm font-semibold text-indigo-700 hover:text-indigo-800 transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-xl border border-indigo-200"
+            onClick={() => playDewSound()}
+            className="text-xs font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/80 hover:bg-zinc-800 rounded-xl border border-zinc-800 hover:border-zinc-700"
           >
-            <BookOpen className="w-4 h-4" />
-            Área de Clientes
+            <BookOpen className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Área de Clientes</span>
           </Link>
           <Link
             to="/admin"
-            className="text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-xl border border-blue-200"
+            onClick={() => playDewSound()}
+            className="text-xs font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/80 hover:bg-zinc-800 rounded-xl border border-zinc-800 hover:border-zinc-700"
           >
-            <LayoutDashboard className="w-4 h-4" />
-            Panel de Negocios
+            <LayoutDashboard className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Panel de Negocios</span>
           </Link>
           <Link
             to="/superadmin"
-            className="text-sm font-semibold text-rose-700 hover:text-rose-800 transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 rounded-xl border border-rose-200"
+            onClick={() => playDewSound()}
+            className="text-xs font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/60 hover:bg-zinc-800 rounded-xl border border-zinc-800/80 hover:border-zinc-700"
           >
-            <Shield className="w-4 h-4" />
-            Superadmin
+            <Shield className="w-3.5 h-3.5 text-zinc-500" />
+            <span>Superadmin</span>
           </Link>
-          <a
-            href="http://localhost:3000/api/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
-          >
-            <BookOpen className="w-4 h-4" />
-            API Docs
-          </a>
         </nav>
 
         <div className="flex items-center space-x-3">
           <NotificationCenter />
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            Hito 9 — Notificaciones & Automatizaciones
-          </span>
         </div>
       </div>
     </header>

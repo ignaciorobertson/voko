@@ -320,7 +320,7 @@ export const GroupSessionsView: React.FC<GroupSessionsViewProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Teléfono / WhatsApp *
+                      Teléfono de Contacto *
                     </label>
                     <input
                       {...register('phone')}
