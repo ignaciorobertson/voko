@@ -21,6 +21,14 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Soporte transparente para rutas sin versionado explícito (ej. /api/health -> /api/v1/health)
+  app.use((req: any, _res: any, next: any) => {
+    if (req.url.startsWith('/api/') && !req.url.startsWith('/api/v1/')) {
+      req.url = req.url.replace('/api/', '/api/v1/');
+    }
+    next();
+  });
+
   // Prefijo global de API
   app.setGlobalPrefix(globalPrefix);
 

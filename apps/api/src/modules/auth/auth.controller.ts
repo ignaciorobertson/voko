@@ -131,6 +131,11 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener datos del usuario actualmente autenticado' })
   async me(@CurrentUser() user: AuthenticatedUser) {
-    return { user };
+    return {
+      id: user.id,
+      email: user.email,
+      isSuperadmin: user.isSuperadmin,
+      user,
+    };
   }
 }

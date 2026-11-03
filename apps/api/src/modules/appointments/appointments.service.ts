@@ -647,65 +647,63 @@ export class AppointmentsService {
     actorUserId: string,
     dto: ManualAppointmentDto,
   ): Promise<AppointmentEntity> {
-    return await this.dataSource.transaction(async (manager) => {
-      let customerId = dto.customerId;
+    let customerId = dto.customerId;
 
-      // Si se envía cliente nuevo al vuelo
-      if (!customerId && dto.newCustomer) {
-        const userRepo = manager.getRepository(UserEntity);
-        const email = dto.newCustomer.email.toLowerCase().trim();
-        let user = await userRepo.findOne({ where: { email } });
+    // Si se envía cliente nuevo al vuelo
+    if (!customerId && dto.newCustomer) {
+      const userRepo = this.dataSource.getRepository(UserEntity);
+      const email = dto.newCustomer.email.toLowerCase().trim();
+      let user = await userRepo.findOne({ where: { email } });
 
-        if (!user) {
-          const tempPasswordHash = await argon2.hash(crypto.randomBytes(16).toString('hex'));
-          user = await userRepo.save(
-            userRepo.create({
-              firstName: dto.newCustomer.firstName,
-              lastName: dto.newCustomer.lastName,
-              email,
-              phone: dto.newCustomer.phone,
-              passwordHash: tempPasswordHash,
-              isActive: true,
-            }),
-          );
-        }
-
-        // Asegurar membresía como cliente en el negocio
-        const memRepo = manager.getRepository(BusinessMembershipEntity);
-        const existingMem = await memRepo.findOne({ where: { businessId, userId: user.id } });
-        if (!existingMem) {
-          await memRepo.save(
-            memRepo.create({
-              businessId,
-              userId: user.id,
-              role: UserRole.CUSTOMER,
-              status: MembershipStatus.ACTIVE,
-            }),
-          );
-        }
-
-        customerId = user.id;
+      if (!user) {
+        const tempPasswordHash = await argon2.hash(crypto.randomBytes(16).toString('hex'));
+        user = await userRepo.save(
+          userRepo.create({
+            firstName: dto.newCustomer.firstName,
+            lastName: dto.newCustomer.lastName,
+            email,
+            phone: dto.newCustomer.phone,
+            passwordHash: tempPasswordHash,
+            isActive: true,
+          }),
+        );
       }
 
-      if (!customerId) {
-        throw new BadRequestException('Debe especificar un customerId o los datos de newCustomer');
+      // Asegurar membresía como cliente en el negocio
+      const memRepo = this.dataSource.getRepository(BusinessMembershipEntity);
+      const existingMem = await memRepo.findOne({ where: { businessId, userId: user.id } });
+      if (!existingMem) {
+        await memRepo.save(
+          memRepo.create({
+            businessId,
+            userId: user.id,
+            role: UserRole.CUSTOMER,
+            status: MembershipStatus.ACTIVE,
+          }),
+        );
       }
 
-      const appointment = await this.create(businessId, customerId, {
-        serviceId: dto.serviceId,
-        branchId: dto.branchId,
-        resourceId: dto.resourceId,
-        startTime: dto.startTime,
-        customerNotes: dto.customerNotes,
-      });
+      customerId = user.id;
+    }
 
-      if (dto.internalNotes) {
-        appointment.internalNotes = dto.internalNotes;
-        await manager.save(AppointmentEntity, appointment);
-      }
+    if (!customerId) {
+      throw new BadRequestException('Debe especificar un customerId o los datos de newCustomer');
+    }
 
-      return appointment;
+    const appointment = await this.create(businessId, customerId, {
+      serviceId: dto.serviceId,
+      branchId: dto.branchId,
+      resourceId: dto.resourceId,
+      startTime: dto.startTime,
+      customerNotes: dto.customerNotes,
     });
+
+    if (dto.internalNotes) {
+      appointment.internalNotes = dto.internalNotes;
+      await this.dataSource.getRepository(AppointmentEntity).save(appointment);
+    }
+
+    return appointment;
   }
 
   async findByBusiness(

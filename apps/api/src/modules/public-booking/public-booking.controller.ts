@@ -17,7 +17,7 @@ import { PublicBookingService } from './public-booking.service';
 import { PublicBookAppointmentDto, PublicJoinSessionDto } from './dto/public-booking.dto';
 
 @ApiTags('public-booking')
-@Controller('public/businesses')
+@Controller(['public/businesses', 'b'])
 export class PublicBookingController {
   constructor(private readonly publicBookingService: PublicBookingService) {}
 

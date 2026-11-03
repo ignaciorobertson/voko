@@ -261,11 +261,11 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
         isActive: true,
       });
 
-      // Consultar disponibilidad para un Lunes futuro (2026-11-02 es un Lunes)
+      // Consultar disponibilidad para un Lunes futuro (2026-11-09 es un Lunes)
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-02',
+        date: '2026-11-09',
       });
 
       expect(slots.length).toBeGreaterThan(0);
@@ -284,11 +284,11 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
     });
 
     it('1.2. Debe respetar excepciones bloqueantes (Feriados / Bloqueos de agenda)', async () => {
-      // Bloquear la tarde del Lunes 2026-11-02 de 16:00 a 20:00
+      // Bloquear la tarde del Lunes 2026-11-09 de 16:00 a 20:00
       await availabilityService.createException(testBusiness.id, {
         resourceId: staffResource.id,
-        startTime: '2026-11-02T16:00:00.000Z',
-        endTime: '2026-11-02T20:00:00.000Z',
+        startTime: '2026-11-09T16:00:00.000Z',
+        endTime: '2026-11-09T20:00:00.000Z',
         isBlocking: true,
         reason: 'Capacitación profesional del Dr. Alejandro',
         exceptionType: ExceptionType.BLOCK,
@@ -297,7 +297,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-02',
+        date: '2026-11-09',
       });
 
       // Ahora solo deben existir slots en la franja matutina (09:00 a 13:00)
@@ -336,7 +336,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
     });
 
     it('1.4. Debe excluir slots que colisionen con citas activas existentes', async () => {
-      // Agendamos una cita directa para el 2026-11-02 a las 10:00:00Z
+      // Agendamos una cita directa para el 2026-11-16 a las 10:00:00Z
       const appRepo = dataSource.getRepository(AppointmentEntity);
       await appRepo.save(
         appRepo.create({
@@ -345,8 +345,8 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
           serviceId: individualService.id,
           resourceId: staffResource.id,
           customerId: customerA.id,
-          startTime: new Date('2026-11-02T10:00:00.000Z'),
-          endTime: new Date('2026-11-02T10:30:00.000Z'),
+          startTime: new Date('2026-11-16T10:00:00.000Z'),
+          endTime: new Date('2026-11-16T10:30:00.000Z'),
           status: AppointmentStatus.CONFIRMED,
           snapshotPrice: 15000,
           snapshotDurationMinutes: 30,
@@ -357,18 +357,18 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-02',
+        date: '2026-11-16',
       });
 
-      const slot1000 = slots.find((s) => s.startTime === '2026-11-02T10:00:00.000Z');
+      const slot1000 = slots.find((s) => s.startTime === '2026-11-16T10:00:00.000Z');
       expect(slot1000).toBeUndefined(); // El slot de las 10:00 ya no debe ofrecerse
     });
   });
 
   describe('2. Motor de Reservas y Transaccionalidad Anti-Overbooking (AppointmentsService)', () => {
     it('2.1. Debe crear un turno individual con snapshot de precio, duración y evento de auditoría', async () => {
-      // 2026-11-02 a las 11:00 UTC
-      const startTime = '2026-11-02T11:00:00.000Z';
+      // 2026-11-09 a las 11:00 UTC
+      const startTime = '2026-11-09T11:00:00.000Z';
 
       const appointment = await appointmentsService.create(testBusiness.id, customerA.id, {
         serviceId: individualService.id,
@@ -461,31 +461,31 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const appointmentC = await appointmentsService.create(testBusiness.id, customerC.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        startTime: '2026-11-02T12:00:00.000Z',
+        startTime: '2026-11-09T12:00:00.000Z',
       });
 
       // Intentamos reprogramarlo a las 11:00 (que ya está ocupado por Customer A en el test 2.1)
       await expect(
         appointmentsService.reschedule(testBusiness.id, appointmentC.id, customerC.id, {
-          newStartTime: '2026-11-02T11:00:00.000Z',
+          newStartTime: '2026-11-09T11:00:00.000Z',
         }),
       ).rejects.toThrow(ConflictException);
 
       // Verificamos que el turno original de C permanece INTACTO a las 12:00
       const appRepo = dataSource.getRepository(AppointmentEntity);
       const reloadedC = await appRepo.findOneOrFail({ where: { id: appointmentC.id } });
-      expect(new Date(reloadedC.startTime).toISOString()).toBe('2026-11-02T12:00:00.000Z');
+      expect(new Date(reloadedC.startTime).toISOString()).toBe('2026-11-09T12:00:00.000Z');
 
-      // Ahora reprogramamos a un horario libre: 2026-11-02T12:30:00.000Z
+      // Ahora reprogramamos a un horario libre: 2026-11-09T12:30:00.000Z
       const rescheduledC = await appointmentsService.reschedule(
         testBusiness.id,
         appointmentC.id,
         customerC.id,
         {
-          newStartTime: '2026-11-02T12:30:00.000Z',
+          newStartTime: '2026-11-09T12:30:00.000Z',
         },
       );
-      expect(new Date(rescheduledC.startTime).toISOString()).toBe('2026-11-02T12:30:00.000Z');
+      expect(new Date(rescheduledC.startTime).toISOString()).toBe('2026-11-09T12:30:00.000Z');
 
       // Verificar evento de auditoría RESCHEDULED
       const eventRepo = dataSource.getRepository(AppointmentEventEntity);
@@ -510,7 +510,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const newApp = await appointmentsService.create(testBusiness.id, customerB.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        startTime: '2026-11-02T12:30:00.000Z',
+        startTime: '2026-11-09T12:30:00.000Z',
       });
       expect(newApp.id).toBeDefined();
       expect(newApp.status).toBe(AppointmentStatus.CONFIRMED);
