@@ -534,8 +534,8 @@ export const ShapeWaves: React.FC<ShapeWavesProps> = ({
       if (s.glow > 0 && chargesActive && pointer.inside) {
         ctx.save();
         const grad = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, s.splashRadius * 2.5 * dpr);
-        grad.addColorStop(0, `rgba(56, 189, 248, ${(0.14 * s.glow).toFixed(3)})`);
-        grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        grad.addColorStop(0, `rgba(255, 255, 255, ${(0.14 * s.glow).toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
         ctx.restore();
