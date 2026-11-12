@@ -228,4 +228,20 @@ export class AuthService {
       },
     };
   }
+
+  async getMe(userId: string) {
+    const userRepo = this.dataSource.getRepository(UserEntity);
+    const user = await userRepo.findOne({ where: { id: userId, isActive: true } });
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      isSuperadmin: user.isSuperadmin,
+    };
+  }
 }

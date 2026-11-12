@@ -293,8 +293,8 @@ export const SuperadminDashboardPage: React.FC = () => {
                   <button
                     onClick={() =>
                       demoLoginMutation.mutate({
-                        email: 'admin@voko.app',
-                        pass: 'Secret123!',
+                        email: 'superadmin@voko.test',
+                        pass: 'VokoSuperAdmin2026!',
                       })
                     }
                     className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-colors"

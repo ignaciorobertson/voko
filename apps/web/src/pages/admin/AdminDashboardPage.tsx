@@ -80,7 +80,7 @@ export const AdminDashboardPage: React.FC = () => {
       } catch {
         // En entorno local de desarrollo, intentar auto-login con cuenta de prueba si no hay token
         try {
-          const res = await authApi.login('nicolas@voko.test', 'Secret123!');
+          const res = await authApi.login('owner@vokobarber.test', 'Password123!');
           return res.user;
         } catch {
           return null;

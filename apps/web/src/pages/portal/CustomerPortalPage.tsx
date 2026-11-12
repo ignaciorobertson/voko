@@ -55,7 +55,7 @@ export const CustomerPortalPage: React.FC = () => {
         return await authApi.getMe();
       } catch {
         try {
-          const res = await authApi.login('nicolas@voko.test', 'Secret123!');
+          const res = await authApi.login('cliente1@test.com', 'Password123!');
           return res.user;
         } catch {
           return null;

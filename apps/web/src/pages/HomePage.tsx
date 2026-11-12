@@ -21,6 +21,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { authApi, AuthUser } from '../api/auth.api.js';
+import { businessesApi } from '../api/businesses.api.js';
 import ShapeWaves from '../components/ShapeWaves.js';
 import { VokoLogo } from '../components/VokoLogo.js';
 import {
@@ -89,12 +90,27 @@ export const HomePage: React.FC = () => {
       setCurrentUser(res.user);
       setSuccessMessage('¡Sesión iniciada con éxito! Redirigiendo...');
 
-      setTimeout(() => {
+      setTimeout(async () => {
         if (res.user.isSuperadmin) {
           navigate('/superadmin');
-        } else {
-          navigate('/portal');
+          return;
         }
+
+        try {
+          const myBiz = await businessesApi.getMyBusinesses();
+          if (
+            myBiz &&
+            myBiz.length > 0 &&
+            myBiz.some((b: any) => b.userRole === 'OWNER' || b.userRole === 'ADMIN')
+          ) {
+            navigate('/admin');
+            return;
+          }
+        } catch {
+          // Si falla, se redirige a portal
+        }
+
+        navigate('/portal');
       }, 700);
     } catch (err: any) {
       setErrorMessage(
@@ -254,26 +270,26 @@ export const HomePage: React.FC = () => {
           <div className="inline-block transform hover:scale-105 transition-transform duration-300">
             {/* Logo de Voko con halo plata y levitación suave */}
             <div className="relative inline-block">
+            </div>
+
+            {/* Caja protectora con sutil frosted glass para máxima legibilidad sobre el fondo */}
+            <div className="space-y-2 py-2 px-4 rounded-3xl backdrop-blur-md bg-black/40 border border-white/10 shadow-[0_10px_35px_rgba(0,0,0,0.7)] max-w-lg mx-auto">
               <div className="absolute -inset-3 bg-gradient-to-r from-white/10 via-zinc-400/10 to-white/10 rounded-3xl blur-xl opacity-60 pointer-events-none" />
               <VokoLogo
                 className="relative h-12 sm:h-14 w-auto mx-auto drop-shadow-[0_4px_25px_rgba(0,0,0,0.8)] animate-float"
               />
             </div>
-          </div>
-
-          {/* Caja protectora con sutil frosted glass para máxima legibilidad sobre el fondo */}
-          <div className="space-y-2 py-2 px-4 rounded-3xl backdrop-blur-md bg-black/40 border border-white/10 shadow-[0_10px_35px_rgba(0,0,0,0.7)] max-w-lg mx-auto">
             <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-100 to-zinc-300 tracking-tight drop-shadow-[0_2px_15px_rgba(255,255,255,0.2)]">
               Gestión Inteligente de Turnos
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] font-medium">
+            {/* <p className="text-xs sm:text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] font-medium">
               La plataforma ágil para administrar citas, clases y reservas en tu negocio sin complicaciones.
-            </p>
+            </p> */}
           </div>
         </div>
 
         {/* Tarjeta Central Interactiva Monocromo Luxury Glassmorphism */}
-        <div className="relative rounded-3xl p-6 sm:p-8 backdrop-blur-2xl bg-zinc-950/85 border border-white/15 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(255,255,255,0.03)] hover:border-white/25 transition-all duration-500">
+        <div className="relative rounded-3xl p-6 sm:p-8 backdrop-blur-sm bg-zinc-950/10 border border-white/15 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(255,255,255,0.03)] hover:border-white/25 transition-all duration-500">
           {/* Resplandor sutil plata en el borde superior */}
           <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
 
@@ -286,8 +302,8 @@ export const HomePage: React.FC = () => {
             /* Vista para usuario ya autenticado */
             <div className="space-y-6 text-center py-2">
               <div className="w-16 h-16 bg-zinc-900 border border-white/20 rounded-2xl flex items-center justify-center mx-auto text-white font-black text-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                {currentUser.firstName.charAt(0)}
-                {currentUser.lastName.charAt(0)}
+                {currentUser.firstName?.charAt(0) || currentUser.email?.charAt(0)?.toUpperCase() || 'V'}
+                {currentUser.lastName?.charAt(0) || ''}
               </div>
 
               <div>
@@ -295,7 +311,7 @@ export const HomePage: React.FC = () => {
                   Sesión Activa
                 </span>
                 <h3 className="text-lg font-bold text-white mt-2">
-                  ¡Hola, {currentUser.firstName} {currentUser.lastName}!
+                  ¡Hola, {currentUser.firstName || 'Usuario'} {currentUser.lastName || ''}!
                 </h3>
                 <p className="text-xs text-zinc-400">{currentUser.email}</p>
               </div>
@@ -333,10 +349,10 @@ export const HomePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-950/20 text-xs font-semibold transition-colors mt-2"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 hover:text-white text-xs font-bold transition-all mt-3"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Cerrar Sesión</span>
+                  <span>Cerrar Sesión / Probar otro Usuario</span>
                 </button>
               </div>
             </div>

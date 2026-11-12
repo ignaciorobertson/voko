@@ -130,12 +130,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener datos del usuario actualmente autenticado' })
-  async me(@CurrentUser() user: AuthenticatedUser) {
-    return {
-      id: user.id,
-      email: user.email,
-      isSuperadmin: user.isSuperadmin,
-      user,
-    };
+  async me(@CurrentUser('id') userId: string) {
+    return await this.authService.getMe(userId);
   }
 }
