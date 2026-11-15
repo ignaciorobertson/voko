@@ -39,7 +39,35 @@ import {
 import { ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 
+// Helpers para fechas dinámicas siempre en el futuro
+const getFutureWeekday = (targetDayOfWeek: number, weeksAhead = 1): Date => {
+  const now = new Date();
+  const currentDay = now.getUTCDay();
+  let diff = targetDayOfWeek - currentDay;
+  if (diff <= 0) {
+    diff += 7;
+  }
+  diff += (weeksAhead - 1) * 7;
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff, 0, 0, 0, 0));
+};
+
+const toDateString = (d: Date): string => d.toISOString().substring(0, 10);
+
+const makeFutureIso = (baseDate: Date, hourUtc: number, minuteUtc = 0): string => {
+  const d = new Date(baseDate);
+  d.setUTCHours(hourUtc, minuteUtc, 0, 0);
+  return d.toISOString();
+};
+
 describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments & Sessions Engine)', () => {
+  // Fechas dinámicas calculadas relativamente a la ejecución actual
+  const nextMonday = getFutureWeekday(1, 1);
+  const nextMondayStr = toDateString(nextMonday);
+  const followingMonday = getFutureWeekday(1, 2);
+  const followingMondayStr = toDateString(followingMonday);
+  const nextSunday = getFutureWeekday(0, 1);
+  const nextSundayStr = toDateString(nextSunday);
+
   let dataSource: DataSource;
   let businessesService: BusinessesService;
   let branchesService: BranchesService;
@@ -261,11 +289,11 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
         isActive: true,
       });
 
-      // Consultar disponibilidad para un Lunes futuro (2026-11-09 es un Lunes)
+      // Consultar disponibilidad para un Lunes futuro dinámico
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-09',
+        date: nextMondayStr,
       });
 
       expect(slots.length).toBeGreaterThan(0);
@@ -284,11 +312,11 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
     });
 
     it('1.2. Debe respetar excepciones bloqueantes (Feriados / Bloqueos de agenda)', async () => {
-      // Bloquear la tarde del Lunes 2026-11-09 de 16:00 a 20:00
+      // Bloquear la tarde del Lunes dinámico de 16:00 a 20:00
       await availabilityService.createException(testBusiness.id, {
         resourceId: staffResource.id,
-        startTime: '2026-11-09T16:00:00.000Z',
-        endTime: '2026-11-09T20:00:00.000Z',
+        startTime: makeFutureIso(nextMonday, 16, 0),
+        endTime: makeFutureIso(nextMonday, 20, 0),
         isBlocking: true,
         reason: 'Capacitación profesional del Dr. Alejandro',
         exceptionType: ExceptionType.BLOCK,
@@ -297,7 +325,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-09',
+        date: nextMondayStr,
       });
 
       // Ahora solo deben existir slots en la franja matutina (09:00 a 13:00)
@@ -310,12 +338,12 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
     });
 
     it('1.3. Debe admitir aperturas extraordinarias fuera de los días habituales', async () => {
-      // Supongamos un Domingo (2026-11-08) donde habitualmente el negocio no atiende.
+      // Supongamos un Domingo dinámico donde habitualmente el negocio no atiende.
       // Creamos una apertura extraordinaria de 10:00 a 14:00
       await availabilityService.createException(testBusiness.id, {
         resourceId: staffResource.id,
-        startTime: '2026-11-08T10:00:00.000Z',
-        endTime: '2026-11-08T14:00:00.000Z',
+        startTime: makeFutureIso(nextSunday, 10, 0),
+        endTime: makeFutureIso(nextSunday, 14, 0),
         isBlocking: false,
         reason: 'Guardia especial de kinesiología deportiva',
         exceptionType: ExceptionType.EXTRAORDINARY_OPENING,
@@ -324,7 +352,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const sundaySlots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-08',
+        date: nextSundayStr,
       });
 
       expect(sundaySlots.length).toBeGreaterThan(0);
@@ -336,7 +364,9 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
     });
 
     it('1.4. Debe excluir slots que colisionen con citas activas existentes', async () => {
-      // Agendamos una cita directa para el 2026-11-16 a las 10:00:00Z
+      // Agendamos una cita directa para el followingMonday a las 10:00:00Z
+      const clashStartTime = makeFutureIso(followingMonday, 10, 0);
+      const clashEndTime = makeFutureIso(followingMonday, 10, 30);
       const appRepo = dataSource.getRepository(AppointmentEntity);
       await appRepo.save(
         appRepo.create({
@@ -345,8 +375,8 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
           serviceId: individualService.id,
           resourceId: staffResource.id,
           customerId: customerA.id,
-          startTime: new Date('2026-11-16T10:00:00.000Z'),
-          endTime: new Date('2026-11-16T10:30:00.000Z'),
+          startTime: new Date(clashStartTime),
+          endTime: new Date(clashEndTime),
           status: AppointmentStatus.CONFIRMED,
           snapshotPrice: 15000,
           snapshotDurationMinutes: 30,
@@ -357,18 +387,17 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const slots = await availabilityService.getAvailableSlots(testBusiness.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        date: '2026-11-16',
+        date: followingMondayStr,
       });
 
-      const slot1000 = slots.find((s) => s.startTime === '2026-11-16T10:00:00.000Z');
+      const slot1000 = slots.find((s) => s.startTime === clashStartTime);
       expect(slot1000).toBeUndefined(); // El slot de las 10:00 ya no debe ofrecerse
     });
   });
 
   describe('2. Motor de Reservas y Transaccionalidad Anti-Overbooking (AppointmentsService)', () => {
     it('2.1. Debe crear un turno individual con snapshot de precio, duración y evento de auditoría', async () => {
-      // 2026-11-09 a las 11:00 UTC
-      const startTime = '2026-11-09T11:00:00.000Z';
+      const startTime = makeFutureIso(nextMonday, 11, 0);
 
       const appointment = await appointmentsService.create(testBusiness.id, customerA.id, {
         serviceId: individualService.id,
@@ -412,8 +441,8 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
 
     it('2.3. PREVENCIÓN DE DOBLE RESERVA Y CONFLICTOS: Cero sobre-reserva en mismo slot y solapamiento de buffers', async () => {
       // Escenario crítico de anti-overbooking:
-      // Usamos el siguiente Lunes (2026-11-09) a las 10:00 UTC (horario habitual abierto sin bloqueos)
-      const raceStartTime = '2026-11-09T10:00:00.000Z';
+      // Usamos el siguiente Lunes a las 10:00 UTC (horario habitual abierto sin bloqueos)
+      const raceStartTime = makeFutureIso(nextMonday, 10, 0);
 
       // 1. Cliente A reserva exitosamente el slot de las 10:00 UTC
       const firstApp = await appointmentsService.create(testBusiness.id, customerA.id, {
@@ -435,7 +464,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       ).rejects.toThrow(ConflictException);
 
       // 3. Cliente C intenta reservar con solapamiento dentro de la ventana de buffer (10:15 UTC, dentro de los 30 min) -> Rechazado con 409 Conflict
-      const overlappingTime = '2026-11-09T10:15:00.000Z';
+      const overlappingTime = makeFutureIso(nextMonday, 10, 15);
       await expect(
         appointmentsService.create(testBusiness.id, customerC.id, {
           serviceId: individualService.id,
@@ -458,34 +487,38 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
 
     it('2.4. Debe reprogramar (reschedule) atómicamente y revertir sin alterar el turno si hay conflicto', async () => {
       // Creamos un turno para Customer C a las 12:00
+      const slot1200 = makeFutureIso(nextMonday, 12, 0);
+      const slot1100 = makeFutureIso(nextMonday, 11, 0);
+      const slot1230 = makeFutureIso(nextMonday, 12, 30);
+
       const appointmentC = await appointmentsService.create(testBusiness.id, customerC.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        startTime: '2026-11-09T12:00:00.000Z',
+        startTime: slot1200,
       });
 
       // Intentamos reprogramarlo a las 11:00 (que ya está ocupado por Customer A en el test 2.1)
       await expect(
         appointmentsService.reschedule(testBusiness.id, appointmentC.id, customerC.id, {
-          newStartTime: '2026-11-09T11:00:00.000Z',
+          newStartTime: slot1100,
         }),
       ).rejects.toThrow(ConflictException);
 
       // Verificamos que el turno original de C permanece INTACTO a las 12:00
       const appRepo = dataSource.getRepository(AppointmentEntity);
       const reloadedC = await appRepo.findOneOrFail({ where: { id: appointmentC.id } });
-      expect(new Date(reloadedC.startTime).toISOString()).toBe('2026-11-09T12:00:00.000Z');
+      expect(new Date(reloadedC.startTime).toISOString()).toBe(slot1200);
 
-      // Ahora reprogramamos a un horario libre: 2026-11-09T12:30:00.000Z
+      // Ahora reprogramamos a un horario libre: 12:30:00.000Z
       const rescheduledC = await appointmentsService.reschedule(
         testBusiness.id,
         appointmentC.id,
         customerC.id,
         {
-          newStartTime: '2026-11-09T12:30:00.000Z',
+          newStartTime: slot1230,
         },
       );
-      expect(new Date(rescheduledC.startTime).toISOString()).toBe('2026-11-09T12:30:00.000Z');
+      expect(new Date(rescheduledC.startTime).toISOString()).toBe(slot1230);
 
       // Verificar evento de auditoría RESCHEDULED
       const eventRepo = dataSource.getRepository(AppointmentEventEntity);
@@ -507,10 +540,11 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       expect(cancelled.cancelledAt).toBeDefined();
 
       // Al quedar cancelado, otro cliente (Customer B) debe poder reservar ese mismo horario liberado
+      const slot1230 = makeFutureIso(nextMonday, 12, 30);
       const newApp = await appointmentsService.create(testBusiness.id, customerB.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        startTime: '2026-11-09T12:30:00.000Z',
+        startTime: slot1230,
       });
       expect(newApp.id).toBeDefined();
       expect(newApp.status).toBe(AppointmentStatus.CONFIRMED);
@@ -520,7 +554,7 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
       const manualApp = await appointmentsService.createManual(testBusiness.id, ownerUser.id, {
         serviceId: individualService.id,
         resourceId: staffResource.id,
-        startTime: '2026-11-08T10:30:00.000Z', // dentro de la guardia del test 1.3
+        startTime: makeFutureIso(nextSunday, 10, 30), // dentro de la guardia del test 1.3
         newCustomer: {
           firstName: 'Ernesto',
           lastName: 'Paciente Telefónico',
@@ -548,8 +582,8 @@ describe('Hito 5: Motor de Disponibilidad, Reservas y Concurrencia (Appointments
         serviceId: groupService.id,
         branchId: testBranch.id,
         resourceId: roomResource.id,
-        startTime: '2026-11-05T18:00:00.000Z',
-        endTime: '2026-11-05T18:45:00.000Z',
+        startTime: makeFutureIso(nextMonday, 18, 0),
+        endTime: makeFutureIso(nextMonday, 18, 45),
         maxCapacity: 2, // Cupo limitado a 2 personas
       });
 

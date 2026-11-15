@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { DataSource, MoreThanOrEqual, LessThan } from 'typeorm';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, MoreThanOrEqual } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AppointmentEntity } from '../../database/entities/appointment.entity';
 import { AppointmentsService } from '../appointments/appointments.service';
@@ -12,8 +12,6 @@ import { AppointmentStatus } from '@voko/shared';
 
 @Injectable()
 export class CustomerPortalService {
-  private readonly logger = new Logger(CustomerPortalService.name);
-
   constructor(
     private readonly dataSource: DataSource,
     private readonly appointmentsService: AppointmentsService,

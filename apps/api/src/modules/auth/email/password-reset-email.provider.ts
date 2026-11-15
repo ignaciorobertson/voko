@@ -165,7 +165,7 @@ export class ResendEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name);
   private readonly resend: Resend;
 
-  constructor(private readonly apiKey: string) {
+  constructor(apiKey: string) {
     this.resend = new Resend(apiKey);
   }
 

@@ -1,16 +1,13 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ForbiddenException,
-  Logger,
 } from '@nestjs/common';
 import { DataSource, MoreThanOrEqual } from 'typeorm';
 import { BusinessEntity } from '../../database/entities/business.entity';
 import { BusinessSettingsEntity } from '../../database/entities/business-settings.entity';
 import { BranchEntity } from '../../database/entities/branch.entity';
 import { ServiceEntity } from '../../database/entities/service.entity';
-import { ServiceResourceEntity } from '../../database/entities/service-resource.entity';
 import { ResourceEntity } from '../../database/entities/resource.entity';
 import { SessionEntity } from '../../database/entities/session.entity';
 import { UserEntity } from '../../database/entities/user.entity';
@@ -26,8 +23,6 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class PublicBookingService {
-  private readonly logger = new Logger(PublicBookingService.name);
-
   constructor(
     private readonly dataSource: DataSource,
     private readonly availabilityService: AvailabilityService,

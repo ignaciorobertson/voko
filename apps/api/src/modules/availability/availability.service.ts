@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AvailabilityRuleEntity } from '../../database/entities/availability-rule.entity';
@@ -18,12 +17,10 @@ import {
   CreateAvailabilityExceptionDto,
   QueryAvailableSlotsDto,
 } from './dto/availability.dto';
-import { AppointmentSlot, ExceptionType, AppointmentStatus } from '@voko/shared';
+import { AppointmentSlot, AppointmentStatus } from '@voko/shared';
 
 @Injectable()
 export class AvailabilityService {
-  private readonly logger = new Logger(AvailabilityService.name);
-
   constructor(private readonly dataSource: DataSource) {}
 
   // ==========================================

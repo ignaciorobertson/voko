@@ -38,7 +38,30 @@ import {
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 
+// Helpers para fechas dinámicas siempre en el futuro
+const getFutureWeekday = (targetDayOfWeek: number, weeksAhead = 1): Date => {
+  const now = new Date();
+  const currentDay = now.getUTCDay();
+  let diff = targetDayOfWeek - currentDay;
+  if (diff <= 0) {
+    diff += 7;
+  }
+  diff += (weeksAhead - 1) * 7;
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff, 0, 0, 0, 0));
+};
+
+const toDateString = (d: Date): string => d.toISOString().substring(0, 10);
+
+const makeFutureIso = (baseDate: Date, hourUtc: number, minuteUtc = 0): string => {
+  const d = new Date(baseDate);
+  d.setUTCHours(hourUtc, minuteUtc, 0, 0);
+  return d.toISOString();
+};
+
 describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingService)', () => {
+  const nextMonday = getFutureWeekday(1, 1);
+  const nextMondayStr = toDateString(nextMonday);
+
   let dataSource: DataSource;
   let businessesService: BusinessesService;
   let servicesService: ServicesService;
@@ -175,8 +198,8 @@ describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingServ
       serviceId: groupService.id,
       branchId: defaultBranch.id,
       resourceId: barberResource.id,
-      startTime: '2026-11-09T18:00:00.000Z',
-      endTime: '2026-11-09T19:00:00.000Z',
+      startTime: makeFutureIso(nextMonday, 18, 0),
+      endTime: makeFutureIso(nextMonday, 19, 0),
       maxCapacity: 4,
     });
   });
@@ -212,10 +235,9 @@ describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingServ
   });
 
   it('6.3. Debe consultar slots públicos disponibles para una fecha específica', async () => {
-    // 2026-11-09 es un Lunes
     const slots = await publicBookingService.getPublicSlots('voko-barber', {
       serviceId: haircutService.id,
-      date: '2026-11-09',
+      date: nextMondayStr,
       resourceId: barberResource.id,
     });
 
@@ -225,7 +247,7 @@ describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingServ
   });
 
   it('6.4. Debe realizar una reserva pública exitosa y retornar código de confirmación VK-XXXX', async () => {
-    const startTime = '2026-11-09T10:00:00.000Z';
+    const startTime = makeFutureIso(nextMonday, 10, 0);
 
     const booking = await publicBookingService.bookAppointment('voko-barber', {
       serviceId: haircutService.id,
@@ -250,7 +272,7 @@ describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingServ
     // Comprobar que el slot ya no se ofrece
     const updatedSlots = await publicBookingService.getPublicSlots('voko-barber', {
       serviceId: haircutService.id,
-      date: '2026-11-09',
+      date: nextMondayStr,
       resourceId: barberResource.id,
     });
 
@@ -289,7 +311,7 @@ describe('Hito 6: Interfaz Pública y Autoservicio de Reserva (PublicBookingServ
     await expect(
       publicBookingService.bookAppointment('voko-barber', {
         serviceId: haircutService.id,
-        startTime: '2026-11-09T14:00:00.000Z',
+        startTime: makeFutureIso(nextMonday, 14, 0),
         customer: {
           firstName: 'Ana',
           lastName: 'Intento',

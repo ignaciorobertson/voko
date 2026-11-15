@@ -168,14 +168,14 @@ describe('Hito 9: Notificaciones Internas (In-App), Email Desacoplado con Resend
 
   describe('1. Notificaciones Internas (In-App) y Centro de Avisos', () => {
     it('1.1. Al crear una reserva, debe insertar notificaciones internas atómicas para cliente y staff', async () => {
-      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      tomorrow.setHours(10, 0, 0, 0);
+      const targetDate = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      targetDate.setHours(10, 0, 0, 0);
 
       const app = await appointmentsService.create(testBusiness.id, customerUser.id, {
         serviceId: testService.id,
         resourceId: testResource.id,
         branchId: testBranch.id,
-        startTime: tomorrow.toISOString(),
+        startTime: targetDate.toISOString(),
       });
 
       expect(app.id).toBeDefined();

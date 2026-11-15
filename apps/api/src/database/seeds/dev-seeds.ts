@@ -8,7 +8,6 @@ import {
   ResourceEntity,
   ServiceResourceEntity,
   AvailabilityRuleEntity,
-  AvailabilityExceptionEntity,
   SessionEntity,
   AppointmentEntity,
   BusinessSettingsEntity,

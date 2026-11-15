@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppointmentEntity } from '../../database/entities/appointment.entity';
 import { AppointmentEventEntity } from '../../database/entities/appointment-event.entity';
@@ -7,8 +7,6 @@ import { AppointmentStatus } from '@voko/shared';
 
 @Injectable()
 export class ReportsService {
-  private readonly logger = new Logger(ReportsService.name);
-
   constructor(private readonly dataSource: DataSource) {}
 
   async getSummary(businessId: string, startDate?: string, endDate?: string) {

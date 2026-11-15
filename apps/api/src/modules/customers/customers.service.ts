@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AppointmentEntity } from '../../database/entities/appointment.entity';
@@ -23,8 +23,6 @@ export interface CustomerSummary {
 
 @Injectable()
 export class CustomersService {
-  private readonly logger = new Logger(CustomersService.name);
-
   constructor(private readonly dataSource: DataSource) {}
 
   async findByBusiness(businessId: string, search?: string): Promise<CustomerSummary[]> {

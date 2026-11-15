@@ -233,7 +233,6 @@ export class NotificationsService {
   async generate24hReminders(businessId: string): Promise<{ remindersCreated: number; appointmentIds: string[] }> {
     const appRepo = this.dataSource.getRepository(AppointmentEntity);
     const notifRepo = this.dataSource.getRepository(NotificationEntity);
-    const inAppRepo = this.dataSource.getRepository(InAppNotificationEntity);
     const userRepo = this.dataSource.getRepository(UserEntity);
     const bizRepo = this.dataSource.getRepository(BusinessEntity);
     const srvRepo = this.dataSource.getRepository(ServiceEntity);
@@ -267,9 +266,21 @@ export class NotificationsService {
       },
     });
 
-    const alreadyRemindedAppIds = new Set(
-      existingReminders.map((r) => (r.payload as any)?.appointmentId).filter(Boolean),
-    );
+    const alreadyRemindedAppIds = new Set<string>();
+    for (const r of existingReminders) {
+      let payload: unknown = r.payload;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          payload = null;
+        }
+      }
+      const appointmentId = (payload as Record<string, any> | null)?.appointmentId;
+      if (appointmentId && typeof appointmentId === 'string') {
+        alreadyRemindedAppIds.add(appointmentId);
+      }
+    }
 
     for (const app of upcomingAppointments) {
       if (alreadyRemindedAppIds.has(app.id)) {

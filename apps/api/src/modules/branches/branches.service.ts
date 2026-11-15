@@ -38,8 +38,6 @@ export class BranchesService {
   }
 
   async create(businessId: string, dto: CreateBranchDto): Promise<BranchEntity> {
-    const branchRepo = this.dataSource.getRepository(BranchEntity);
-
     return await this.dataSource.transaction(async (manager) => {
       const existingCount = await manager.count(BranchEntity, { where: { businessId } });
       const shouldBeDefault = dto.isDefault || existingCount === 0;

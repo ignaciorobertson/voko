@@ -207,7 +207,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="relative min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-10 overflow-hidden bg-[#120f17]">
       {/* ======================================================== */}
-      {/* 1. Fondo Interactivo ShapeWaves (ReactBits Studio)       */}
+      {/* 1. Fondo Continuo Fluido ShapeWaves (ReactBits Studio)   */}
       {/* ======================================================== */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <ShapeWaves
@@ -216,7 +216,7 @@ export const HomePage: React.FC = () => {
           fontWeight={800}
           textSize={0.55}
           shapes="mixed"
-          cellSize={10}
+          cellSize={12}
           dotSize={0.75}
           color="#929292"
           hoverColor="#ffffff"
@@ -228,10 +228,10 @@ export const HomePage: React.FC = () => {
           flow={0}
           direction={0}
           fade={0.15}
-          interactive={true}
-          splashRadius={40}
-          splashStrength={0.4}
-          glow={0.35}
+          interactive={false}
+          splashRadius={0}
+          splashStrength={0}
+          glow={0}
           intro={true}
           introDuration={1.6}
           paused={false}
@@ -268,10 +268,6 @@ export const HomePage: React.FC = () => {
         {/* Cabecera con Logotipo y Breve Descripción con Alto Contraste */}
         <div className="text-center space-y-3">
           <div className="inline-block transform hover:scale-105 transition-transform duration-300">
-            {/* Logo de Voko con halo plata y levitación suave */}
-            <div className="relative inline-block">
-            </div>
-
             {/* Caja protectora con sutil frosted glass para máxima legibilidad sobre el fondo */}
             <div className="space-y-2 py-2 px-4 rounded-3xl backdrop-blur-md bg-black/40 border border-white/10 shadow-[0_10px_35px_rgba(0,0,0,0.7)] max-w-lg mx-auto">
               <div className="absolute -inset-3 bg-gradient-to-r from-white/10 via-zinc-400/10 to-white/10 rounded-3xl blur-xl opacity-60 pointer-events-none" />
@@ -282,9 +278,6 @@ export const HomePage: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-100 to-zinc-300 tracking-tight drop-shadow-[0_2px_15px_rgba(255,255,255,0.2)]">
               Gestión Inteligente de Turnos
             </h1>
-            {/* <p className="text-xs sm:text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] font-medium">
-              La plataforma ágil para administrar citas, clases y reservas en tu negocio sin complicaciones.
-            </p> */}
           </div>
         </div>
 

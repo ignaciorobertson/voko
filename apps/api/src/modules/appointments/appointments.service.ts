@@ -6,7 +6,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AppointmentEntity } from '../../database/entities/appointment.entity';
 import { AppointmentEventEntity } from '../../database/entities/appointment-event.entity';
 import { ServiceEntity } from '../../database/entities/service.entity';
@@ -644,7 +644,7 @@ export class AppointmentsService {
 
   async createManual(
     businessId: string,
-    actorUserId: string,
+    _actorUserId: string,
     dto: ManualAppointmentDto,
   ): Promise<AppointmentEntity> {
     let customerId = dto.customerId;
