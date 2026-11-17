@@ -63,7 +63,7 @@ async function bootstrap() {
     customSiteTitle: 'Voko API Documentation',
   });
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`🚀 Voko API corriendo en: http://localhost:${port}/${globalPrefix}`);
   logger.log(`📚 Documentación Swagger disponible en: http://localhost:${port}/api/docs`);
 }

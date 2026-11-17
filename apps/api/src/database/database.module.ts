@@ -11,40 +11,62 @@ import { runDevSeeds } from './seeds/dev-seeds';
       provide: DataSource,
       useFactory: async () => {
         const logger = new Logger('DatabaseConnection');
-        let dataSource = new DataSource(dataSourceOptions);
+        const dataSource = new DataSource(dataSourceOptions);
+
         try {
           await dataSource.initialize();
+
           logger.log('✅ Conexión con PostgreSQL establecida exitosamente.');
-          const hasPendingMigrations = await dataSource.showMigrations();
-          if (hasPendingMigrations) {
-            logger.log('🔄 Ejecutando migraciones pendientes en PostgreSQL...');
-            await dataSource.runMigrations();
-            logger.log('✅ Migraciones completadas en PostgreSQL.');
-          }
+
+          // Las migraciones se ejecutarán mediante el Pre-deploy
+          // de Railway, no durante el inicio de la aplicación.
+
+          return dataSource;
         } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : String(error);
+
+          // SQLite solamente está permitido en desarrollo local.
+          if (process.env.NODE_ENV !== 'development') {
+            logger.error(
+              `❌ No se pudo conectar con PostgreSQL. La aplicación no puede iniciar. Error: ${msg}`,
+            );
+
+            throw error;
+          }
+
           logger.warn(
-            `⚠️ PostgreSQL no disponible (${msg}). Activando motor local SQLite en memoria con semillas para desarrollo...`,
+            `⚠️ PostgreSQL no disponible (${msg}). Activando SQLite en memoria para desarrollo local...`,
           );
-          dataSource = new DataSource({
+
+          const sqliteDataSource = new DataSource({
             type: 'better-sqlite3',
             database: ':memory:',
             entities: ALL_ENTITIES,
             synchronize: true,
             logging: false,
           });
-          await dataSource.initialize();
+
+          await sqliteDataSource.initialize();
+
           try {
-            await runDevSeeds(dataSource);
-            logger.log('✅ Semillas iniciales inyectadas exitosamente en base de datos local.');
-          } catch {
-            logger.warn('Nota: Semillas locales omitidas o ya existentes.');
+            await runDevSeeds(sqliteDataSource);
+            logger.log(
+              '✅ Semillas iniciales inyectadas exitosamente en SQLite.',
+            );
+          } catch (seedError: unknown) {
+            const seedMsg =
+              seedError instanceof Error
+                ? seedError.message
+                : String(seedError);
+
+            logger.warn(`⚠️ Semillas locales omitidas: ${seedMsg}`);
           }
+
+          return sqliteDataSource;
         }
-        return dataSource;
       },
     },
   ],
   exports: [DataSource],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }
